@@ -1,7 +1,7 @@
 import { getDashboardStats, getTransactions, getLoans } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Wallet, HandCoins, Users, TrendingUp, AlertCircle } from "lucide-react";
+import { Wallet, HandCoins, Users, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default async function DashboardOverviewPage() {
@@ -84,13 +84,13 @@ export default async function DashboardOverviewPage() {
       </div>
 
       {/* Overdue Loans Alert */}
-      {stats && stats.overdueLoans > 0 && (
+      {stats && (stats.overdueLoans ?? 0) > 0 && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="flex items-center gap-3 pt-6">
             <AlertCircle className="h-5 w-5 text-orange-600" />
             <div>
               <p className="font-medium text-orange-900">
-                {stats.overdueLoans} loan{stats.overdueLoans > 1 ? "s" : ""} overdue
+                {stats.overdueLoans ?? 0} loan{(stats.overdueLoans ?? 0) > 1 ? "s" : ""} overdue
               </p>
               <p className="text-sm text-orange-700">
                 Please review and follow up on overdue payments
@@ -108,11 +108,11 @@ export default async function DashboardOverviewPage() {
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentTransactions.length === 0 ? (
+            {(recentTransactions?.length ?? 0) === 0 ? (
               <p className="text-center py-8 text-gray-500 dark:text-gray-400">No transactions yet</p>
             ) : (
               <div className="space-y-4">
-                {recentTransactions.map((transaction: any) => (
+                {recentTransactions?.map((transaction: any) => (
                   <div key={transaction.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${
@@ -154,11 +154,11 @@ export default async function DashboardOverviewPage() {
             <CardTitle>Recent Loans</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentLoans.length === 0 ? (
+            {(recentLoans?.length ?? 0) === 0 ? (
               <p className="text-center py-8 text-gray-500 dark:text-gray-400">No loans yet</p>
             ) : (
               <div className="space-y-4">
-                {recentLoans.map((loan: any) => (
+                {recentLoans?.map((loan: any) => (
                   <div key={loan.id} className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-sm text-gray-900 dark:text-white">
@@ -178,9 +178,11 @@ export default async function DashboardOverviewPage() {
                         "text-gray-500 dark:text-gray-400"
                       }`}>
                         {loan.status}
-              <p className="text-sm text-gray-500 text-center py-4">
-                No loans yet
-              </p>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
