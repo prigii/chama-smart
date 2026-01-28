@@ -16,41 +16,62 @@ export async function createChama(data: {
   phone: string;
   password: string;
 }) {
-  try {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    
-    // Transaction: Create Chama + Create Admin User linked to it
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Chama
-      const chama = await tx.chama.create({
-        data: {
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-        },
-      });
+  console.log("🚀 [createChama] Starting Chama creation with data:", {
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    hasPassword: !!data.password,
+  });
 
-      // 2. Create Admin User (The "Chama" account)
-      const user = await tx.user.create({
-        data: {
-          email: data.email,
-          password: hashedPassword,
-          name: data.name, // The user requested Chama Name 
-          phone: data.phone,
-          role: "ADMIN",
-          chamaId: chama.id,
-        },
-      });
-      return user;
+  try {
+    // Check if email already exists
+    console.log("🔍 [createChama] Checking for existing email...");
+    const existingChama = await prisma.chama.findUnique({ 
+      where: { email: data.email } 
     });
 
-    return { success: true, user: { id: result.id, email: result.email } };
-  } catch (error: any) {
-    console.error("Error creating chama:", error);
-    if (error.code === "P2002") {
+    if (existingChama) {
+      console.error("❌ [createChama] Email already exists");
       return { success: false, error: "Email already registered" };
     }
-    return { success: false, error: "Failed to create chama account" };
+
+    console.log("🔐 [createChama] Hashing password for future admin...");
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    console.log("✅ [createChama] Password hashed successfully");
+    
+    // Create Chama only - no user yet
+    console.log("📝 [createChama] Creating Chama record...");
+    const chama = await prisma.chama.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+      },
+    });
+    console.log("✅ [createChama] Chama created with ID:", chama.id);
+    console.log("🎉 [createChama] Chama creation completed successfully!");
+    
+    // Return chama info and hashed password for the next step
+    return { 
+      success: true, 
+      chama: { 
+        id: chama.id, 
+        email: chama.email,
+        name: chama.name,
+      },
+      tempPassword: hashedPassword, // Will be used to create first admin
+    };
+  } catch (error: any) {
+    console.error("❌ [createChama] Error creating chama:", error);
+    console.error("❌ [createChama] Error code:", error.code);
+    console.error("❌ [createChama] Error message:", error.message);
+    
+    if (error.code === "P2002") {
+      const field = error.meta?.target?.[0] || "email";
+      console.error("❌ [createChama] Unique constraint violation on field:", field);
+      return { success: false, error: `${field === 'email' ? 'Email' : 'This value'} already registered` };
+    }
+    return { success: false, error: `Failed to create chama account: ${error.message}` };
   }
 }
 
@@ -256,7 +277,13 @@ export async function getTransactions(userId?: string) {
       take: 100,
     });
 
-    return { success: true, transactions };
+    // Convert Decimal amounts to numbers
+    const serializedTransactions = transactions.map(tx => ({
+      ...tx,
+      amount: tx.amount.toNumber(),
+    }));
+
+    return { success: true, transactions: serializedTransactions };
   } catch (error) {
     console.error("Error fetching transactions:", error);
     return { success: false, error: "Failed to fetch transactions" };
@@ -426,7 +453,16 @@ export async function getLoans(userId?: string) {
       },
     });
 
-    return { success: true, loans };
+    // Convert Decimal fields to numbers for client components
+    const serializedLoans = loans.map(loan => ({
+      ...loan,
+      amount: loan.amount.toNumber(),
+      interestRate: loan.interestRate.toNumber(),
+      totalRepayable: loan.totalRepayable.toNumber(),
+      balance: loan.balance.toNumber(),
+    }));
+
+    return { success: true, loans: serializedLoans };
   } catch (error) {
     console.error("Error fetching loans:", error);
     return { success: false, error: "Failed to fetch loans" };
@@ -571,7 +607,62 @@ export async function getLoanStats() {
   }
 }
 
-// ============ ASSET ACTIONS ============
+// Create first admin user for a newly registered Chama
+export async function createFirstAdmin(data: {
+  chamaId: string;
+  email: string;
+  name: string;
+  phone: string;
+  hashedPassword: string;
+}) {
+  console.log("👤 [createFirstAdmin] Creating first admin for Chama:", data.chamaId);
+  
+  try {
+    // Verify chama exists
+    const chama = await prisma.chama.findUnique({
+      where: { id: data.chamaId },
+    });
+
+    if (!chama) {
+      return { success: false, error: "Chama not found" };
+    }
+
+    // Check if admin already exists for this chama
+    const existingAdmin = await prisma.user.findFirst({
+      where: { 
+        chamaId: data.chamaId,
+        role: "ADMIN",
+      },
+    });
+
+    if (existingAdmin) {
+      return { success: false, error: "Admin already exists for this Chama" };
+    }
+
+    // Create the admin user
+    const user = await prisma.user.create({
+      data: {
+        email: data.email,
+        password: data.hashedPassword,
+        name: data.name,
+        phone: data.phone,
+        role: "ADMIN",
+        chamaId: data.chamaId,
+      },
+    });
+
+    console.log("✅ [createFirstAdmin] Admin created with ID:", user.id);
+    return { success: true, user: { id: user.id, email: user.email } };
+  } catch (error: any) {
+    console.error("❌ [createFirstAdmin] Error:", error);
+    if (error.code === "P2002") {
+      return { success: false, error: "Email already registered" };
+    }
+    return { success: false, error: "Failed to create admin user" };
+  }
+}
+
+// ============ USER ACTIONS ============
 
 // ============ ASSET ACTIONS ============
 
@@ -631,7 +722,14 @@ export async function getAssets() {
       },
     });
 
-    return { success: true, assets };
+    // Convert Decimal price fields to numbers
+    const serializedAssets = assets.map(asset => ({
+      ...asset,
+      purchasePrice: asset.purchasePrice.toNumber(),
+      currentValue: asset.currentValue.toNumber(),
+    }));
+
+    return { success: true, assets: serializedAssets };
   } catch (error) {
     console.error("Error fetching assets:", error);
     return { success: false, error: "Failed to fetch assets" };

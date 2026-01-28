@@ -319,8 +319,8 @@ export default function LoansPage() {
               <TableBody>
                 {loans.map((loan) => {
                   const progress = calculateProgress(
-                    loan.balance.toNumber(),
-                    loan.totalRepayable.toNumber()
+                    loan.balance,
+                    loan.totalRepayable
                   );
 
                   return (

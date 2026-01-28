@@ -20,69 +20,65 @@ export default async function DashboardOverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with your chama.</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back! Here's what's happening with your chama.</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Cash at Hand
             </CardTitle>
-            <Wallet className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(stats?.cashAtHand || 0)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Available funds</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Available balance</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Active Loans
             </CardTitle>
-            <HandCoins className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {stats?.activeLoans || 0}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Currently active</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ongoing loans</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Total Members
             </CardTitle>
-            <Users className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {stats?.totalMembers || 0}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Registered members</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Registered users</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Total Assets
             </CardTitle>
-            <TrendingUp className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(stats?.totalAssets || 0)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Investment value</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Investment value</p>
           </CardContent>
         </Card>
       </div>
@@ -112,36 +108,42 @@ export default async function DashboardOverviewPage() {
             <CardTitle>Recent Transactions</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentTransactions && recentTransactions.length > 0 ? (
+            {recentTransactions.length === 0 ? (
+              <p className="text-center py-8 text-gray-500 dark:text-gray-400">No transactions yet</p>
+            ) : (
               <div className="space-y-4">
                 {recentTransactions.map((transaction: any) => (
                   <div key={transaction.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm text-gray-900">
-                        {transaction.user.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {transaction.type.replace(/_/g, " ")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium text-sm ${
-                        transaction.type === "DEPOSIT" ? "text-green-600" : "text-gray-900"
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full ${
+                        transaction.type === "DEPOSIT" 
+                          ? "bg-green-100 dark:bg-green-900/30" 
+                          : "bg-red-100 dark:bg-red-900/30"
                       }`}>
-                        {transaction.type === "DEPOSIT" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(transaction.date)}
-                      </p>
+                        {transaction.type === "DEPOSIT" ? (
+                          <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-gray-900 dark:text-white">
+                          {transaction.user.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {formatDate(transaction.date)}
+                        </p>
+                      </div>
                     </div>
+                    <p className={`font-medium ${
+                      transaction.type === "DEPOSIT" ? "text-green-600 dark:text-green-400" : "text-gray-900 dark:text-white"
+                    }`}>
+                      {transaction.type === "DEPOSIT" ? "+" : "-"}
+                      {formatCurrency(transaction.amount)}
+                    </p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">
-                No transactions yet
-              </p>
             )}
           </CardContent>
         </Card>
@@ -152,39 +154,30 @@ export default async function DashboardOverviewPage() {
             <CardTitle>Recent Loans</CardTitle>
           </CardHeader>
           <CardContent>
-            {recentLoans && recentLoans.length > 0 ? (
+            {recentLoans.length === 0 ? (
+              <p className="text-center py-8 text-gray-500 dark:text-gray-400">No loans yet</p>
+            ) : (
               <div className="space-y-4">
                 {recentLoans.map((loan: any) => (
                   <div key={loan.id} className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-sm text-gray-900">
+                      <p className="font-medium text-sm text-gray-900 dark:text-white">
                         {loan.borrower.name}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {loan.durationMonths} months @ {loan.interestRate}%
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Due: {formatDate(loan.dueDate)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-sm text-gray-900">
+                      <p className="font-medium text-sm text-gray-900 dark:text-white">
                         {formatCurrency(loan.amount)}
                       </p>
-                      <Badge
-                        variant={
-                          loan.status === "PAID"
-                            ? "default"
-                            : loan.status === "ACTIVE"
-                            ? "secondary"
-                            : "outline"
-                        }
-                        className="text-xs"
-                      >
+                      <p className={`text-xs ${
+                        loan.status === "ACTIVE" ? "text-blue-600 dark:text-blue-400" : 
+                        loan.status === "PAID" ? "text-green-600 dark:text-green-400" : 
+                        "text-gray-500 dark:text-gray-400"
+                      }`}>
                         {loan.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
               <p className="text-sm text-gray-500 text-center py-4">
                 No loans yet
               </p>

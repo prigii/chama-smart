@@ -89,8 +89,8 @@ export default function InvestmentsPage() {
     return { diff, percentage };
   };
 
-  const totalInvestment = assets.reduce((sum, asset) => sum + asset.purchasePrice.toNumber(), 0);
-  const totalCurrentValue = assets.reduce((sum, asset) => sum + asset.currentValue.toNumber(), 0);
+  const totalInvestment = assets.reduce((sum, asset) => sum + asset.purchasePrice, 0);
+  const totalCurrentValue = assets.reduce((sum, asset) => sum + asset.currentValue, 0);
   const totalGainLoss = totalCurrentValue - totalInvestment;
   const totalGainLossPercentage = totalInvestment > 0 ? (totalGainLoss / totalInvestment) * 100 : 0;
 
@@ -255,8 +255,8 @@ export default function InvestmentsPage() {
               <TableBody>
                 {assets.map((asset) => {
                   const { diff, percentage } = calculateGainLoss(
-                    asset.purchasePrice.toNumber(),
-                    asset.currentValue.toNumber()
+                    asset.purchasePrice,
+                    asset.currentValue
                   );
                   const isGain = diff >= 0;
 

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { createChama } from "@/lib/actions";
+import { createChama, createFirstAdmin } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
@@ -84,19 +84,33 @@ export default function LandingPage() {
     setRegError("");
 
     try {
-      // Create Chroma + Admin Account
-      const result = await createChama({
+      // Step 1: Create Chama
+      const chamaResult = await createChama({
         ...regData,
       });
 
-      if (result.success) {
-        // Auto login after registration
+      if (!chamaResult.success) {
+        setRegError(String(chamaResult.error) || "Registration failed");
+        return;
+      }
+
+      // Step 2: Create first admin user
+      const adminResult = await createFirstAdmin({
+        chamaId: chamaResult.chama!.id,
+        email: regData.email,
+        name: regData.name,
+        phone: regData.phone,
+        hashedPassword: chamaResult.tempPassword!,
+      });
+
+      if (adminResult.success) {
+        // Auto-populate login form
         setLoginEmail(regData.email);
         setLoginPassword(regData.password);
         setActiveTab("login");
-        alert("Registration successful! Please log in.");
+        alert(`Chama "${chamaResult.chama!.name}" registered successfully! Please log in as the admin.`);
       } else {
-        setRegError(String(result.error) || "Registration failed");
+        setRegError(String(adminResult.error) || "Failed to create admin account");
       }
     } catch (error) {
       setRegError("An error occurred during registration");
