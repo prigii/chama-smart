@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Church } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -46,8 +46,13 @@ export default function SignInPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-blue-600 rounded-full">
-              <Church className="h-8 w-8 text-white" />
+            <div className="relative h-20 w-20">
+              <Image 
+                src="/logo.png" 
+                alt="ChamaSmart Logo" 
+                fill
+                className="object-contain"
+              />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Welcome to ChamaSmart</CardTitle>
