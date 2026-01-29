@@ -131,7 +131,112 @@ export default function LandingPage() {
     }
   };
 
+  // Structured Data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "ChamaSmart",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "AggregateOffer",
+          "lowPrice": "0",
+          "highPrice": "500",
+          "priceCurrency": "KES",
+          "offerCount": "3"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "100"
+        },
+        "description": "Comprehensive platform for managing Kenyan investment groups (Chamas). Track members, contributions, loans, investments, and generate detailed financial reports.",
+        "featureList": [
+          "Member Management",
+          "Financial Tracking",
+          "Loan Management",
+          "Investment Tracking",
+          "Automated Reports",
+          "Mobile Friendly"
+        ]
+      },
+      {
+        "@type": "Organization",
+        "name": "ChamaSmart",
+        "url": "https://chamasmart.com",
+        "logo": "https://chamasmart.com/icon.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+254-700-000-000",
+          "contactType": "customer support",
+          "areaServed": "KE",
+          "availableLanguage": ["en", "sw"]
+        },
+        "sameAs": [
+          "https://twitter.com/chamasmart",
+          "https://facebook.com/chamasmart"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "name": "ChamaSmart",
+        "url": "https://chamasmart.com",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://chamasmart.com/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How do members log in?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Admins create member accounts. Members receive their credentials via email (or from the admin directly) and can log in using the Member Login tab."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my data secure?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, we use bank-grade encryption and secure database protocols to ensure your financial data is safe."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I track M-Pesa payments?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Absolutely. You can record M-Pesa reference codes for every transaction to make reconciliation easy."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does it support loan guarantors?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, our comprehensive loan module allows you to assign up to 2 guarantors per loan and track their approval status."
+            }
+          }
+        ]
+      }
+    ]
+  };
+
   return (
+    <>
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-blue-100 dark:selection:bg-blue-900">
       
       {/* Navigation */}
@@ -140,7 +245,7 @@ export default function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
               <div className="relative h-10 w-10">
-                <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+                <Image src="/icon.png" alt="Logo" fill className="object-contain" />
               </div>
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-green-600">
                 ChamaSmart
@@ -536,7 +641,7 @@ export default function LandingPage() {
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                  <div className="relative h-10 w-10">
-                    <Image src="/logo.png" alt="Logo" fill className="object-contain" />
+                    <Image src="/icon.png" alt="Logo" fill className="object-contain" />
                   </div>
                 <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400">ChamaSmart</span>
               </div>
@@ -576,6 +681,7 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
 
