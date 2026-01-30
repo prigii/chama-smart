@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, ArrowUpCircle, ArrowDownCircle, DollarSign } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
 
 const TRANSACTION_TYPES = [
   { value: "DEPOSIT", label: "Deposit", icon: ArrowUpCircle, color: "text-green-600" },
@@ -91,6 +92,9 @@ export default function WalletPage() {
         referenceCode: "",
       });
       loadData();
+      toast.success("Transaction recorded successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to record transaction");
     }
   };
 
@@ -117,8 +121,8 @@ export default function WalletPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Wallet</h1>
-          <p className="text-gray-600 mt-1">Track all transactions and savings</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Wallet</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Track all transactions and savings</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -238,8 +242,8 @@ export default function WalletPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-gray-900">{transaction.user.name}</p>
-                        <p className="text-xs text-gray-500">{transaction.user.email}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{transaction.user.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{transaction.user.email}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -250,10 +254,10 @@ export default function WalletPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                       {transaction.description || "-"}
                     </TableCell>
-                    <TableCell className="text-sm font-mono text-gray-600">
+                    <TableCell className="text-sm font-mono text-gray-600 dark:text-gray-400">
                       {transaction.referenceCode || "-"}
                     </TableCell>
                     <TableCell className={`text-right font-medium ${getTransactionColor(transaction.type)}`}>

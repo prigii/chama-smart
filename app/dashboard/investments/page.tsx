@@ -23,7 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, TrendingUp, TrendingDown, Edit, Trash2 } from "lucide-react";
+
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function InvestmentsPage() {
   const [assets, setAssets] = useState<any[]>([]);
@@ -73,13 +75,21 @@ export default function InvestmentsPage() {
         category: "",
       });
       loadAssets();
+      toast.success("Asset added successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to add asset");
     }
   };
 
   const handleDelete = async (assetId: string) => {
     if (confirm("Are you sure you want to delete this asset?")) {
-      await deleteAsset(assetId);
-      loadAssets();
+      const result = await deleteAsset(assetId);
+      if (result.success) {
+        loadAssets();
+        toast.success("Asset deleted successfully");
+      } else {
+        toast.error("Failed to delete asset");
+      }
     }
   };
 
@@ -98,8 +108,8 @@ export default function InvestmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Investments</h1>
-          <p className="text-gray-600 mt-1">Track your investment portfolio</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Investments</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Track your investment portfolio</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -189,31 +199,31 @@ export default function InvestmentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Total Investment
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(totalInvestment)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Current Value
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(totalCurrentValue)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
               Gain/Loss
             </CardTitle>
           </CardHeader>
@@ -264,16 +274,16 @@ export default function InvestmentsPage() {
                     <TableRow key={asset.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-gray-900">{asset.name}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{asset.name}</p>
                           {asset.description && (
-                            <p className="text-xs text-gray-500">{asset.description}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{asset.description}</p>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {asset.category}
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(asset.purchaseDate)}
                       </TableCell>
                       <TableCell className="font-medium">

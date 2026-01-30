@@ -20,6 +20,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: {
             email: credentials.email as string,
           },
+          include: {
+            chama: true, // Include chama information
+          },
         });
 
         if (!user || !user.password) {
@@ -40,6 +43,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          chamaId: user.chamaId,
+          chamaName: user.chama?.name,
         };
       },
     }),
@@ -49,6 +54,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user && user.id && user.role) {
         token.id = user.id;
         token.role = user.role;
+        token.chamaId = (user as any).chamaId;
+        token.chamaName = (user as any).chamaName;
       }
       return token;
     },
@@ -56,6 +63,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.chamaId = token.chamaId as string;
+        session.user.chamaName = token.chamaName as string;
       }
       return session;
     },

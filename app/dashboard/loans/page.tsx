@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, CheckCircle, XCircle, DollarSign } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function LoansPage() {
   const [loans, setLoans] = useState<any[]>([]);
@@ -113,24 +114,38 @@ export default function LoansPage() {
         guarantor2Amount: "",
       });
       loadData();
+      toast.success("Loan created successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to create loan");
     }
   };
 
   const handleStatusChange = async (loanId: string, status: any) => {
-    await updateLoanStatus(loanId, status);
-    loadData();
+    const result = await updateLoanStatus(loanId, status);
+    if (result.success) {
+      loadData();
+      toast.success(`Loan status updated to ${status}`);
+    } else {
+      toast.error("Failed to update status");
+    }
   };
 
   const handleRepayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    await recordLoanRepayment(
+    const result = await recordLoanRepayment(
       repaymentDialog.loanId,
       parseFloat(repaymentData.amount),
       repaymentData.referenceCode || undefined
     );
-    setRepaymentDialog({ open: false, loanId: "" });
-    setRepaymentData({ amount: "", referenceCode: "" });
-    loadData();
+    
+    if (result.success) {
+      setRepaymentDialog({ open: false, loanId: "" });
+      setRepaymentData({ amount: "", referenceCode: "" });
+      loadData();
+      toast.success("Repayment recorded successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to record repayment");
+    }
   };
 
   const getLoanStatusBadge = (status: string) => {
@@ -154,8 +169,8 @@ export default function LoansPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Loans</h1>
-          <p className="text-gray-600 mt-1">Manage table banking loans</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Loans</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage table banking loans</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -327,8 +342,8 @@ export default function LoansPage() {
                     <TableRow key={loan.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-gray-900">{loan.borrower.name}</p>
-                          <p className="text-xs text-gray-500">{loan.borrower.email}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{loan.borrower.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{loan.borrower.email}</p>
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">
@@ -347,7 +362,7 @@ export default function LoansPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-600">
+                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {loan.dueDate ? formatDate(loan.dueDate) : "-"}
                       </TableCell>
                       <TableCell>

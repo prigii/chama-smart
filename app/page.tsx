@@ -7,6 +7,8 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { createChama, createFirstAdmin } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
+import { getPhoneValidationError, formatKenyanPhone } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +52,7 @@ export default function LandingPage() {
   });
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState("");
+  const [regPhoneError, setRegPhoneError] = useState<string | null>(null);
 
   // FAQ State
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -84,9 +87,18 @@ export default function LandingPage() {
     setRegError("");
 
     try {
+      // Validate phone
+      const phoneErr = getPhoneValidationError(regData.phone);
+      if (phoneErr) {
+        setRegPhoneError(phoneErr);
+        setRegLoading(false);
+        return;
+      }
+      
       // Step 1: Create Chama
       const chamaResult = await createChama({
         ...regData,
+        phone: formatKenyanPhone(regData.phone),
       });
 
       if (!chamaResult.success) {
@@ -375,13 +387,20 @@ export default function LandingPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input 
+                       <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        <Link 
+                          href="/auth/forgot-password" 
+                          className="text-xs text-blue-600 hover:text-blue-700"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
+                      <PasswordInput 
                         id="password" 
-                        type="password"
                         placeholder="••••••••"
                         value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
+                        onChange={(value) => setLoginPassword(value)}
                         required 
                       />
                     </div>
@@ -420,17 +439,28 @@ export default function LandingPage() {
                         type="tel" 
                         placeholder="+254..."
                         value={regData.phone}
-                        onChange={(e) => setRegData({...regData, phone: e.target.value})}
+                        onChange={(e) => {
+                          setRegData({...regData, phone: e.target.value});
+                          if(regPhoneError) setRegPhoneError(null);
+                        }}
+                        onBlur={() => {
+                          const err = getPhoneValidationError(regData.phone);
+                          setRegPhoneError(err);
+                          if (!err && regData.phone) {
+                            setRegData(prev => ({...prev, phone: formatKenyanPhone(prev.phone)}));
+                          }
+                        }}
+                        className={regPhoneError ? "border-red-500" : ""}
                         required 
                       />
+                      {regPhoneError && <p className="text-sm text-red-600">{regPhoneError}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="r-password">Password</Label>
-                      <Input 
+                      <PasswordInput 
                         id="r-password" 
-                        type="password"
                         value={regData.password}
-                        onChange={(e) => setRegData({...regData, password: e.target.value})}
+                        onChange={(value) => setRegData({...regData, password: value})}
                         required 
                       />
                     </div>

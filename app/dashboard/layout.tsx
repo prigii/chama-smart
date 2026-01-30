@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
-import { getUsers } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -43,35 +41,19 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [chamaName, setChamaName] = useState("ChamaSmart");
 
-  useEffect(() => {
-    const fetchChamaName = async () => {
-      // If the current user is the admin (Chama), use their name immediately
-      if (session?.user?.role === "ADMIN" && session.user.name) {
-        setChamaName(session.user.name);
-        return;
-      }
+  // Get chama name from session, fallback to ChamaSmart
+  const chamaName = session?.user?.chamaName || "ChamaSmart";
 
-      // If member, fetch users to find the Admin's name (which is the Chama Name)
-      try {
-        const result = await getUsers();
-        if (result.success && result.users) {
-          const admin = result.users.find((u: any) => u.role === "ADMIN");
-          if (admin && admin.name) {
-            setChamaName(admin.name);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch chama name", error);
-      }
-    };
+  // Get initials from chama name for avatar in sidebar
+  const chamaInitials = chamaName
+    ?.split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "CS";
 
-    if (session) {
-      fetchChamaName();
-    }
-  }, [session]);
-
+  // Get user initials for user dropdown
   const userInitials = session?.user?.name
     ?.split(" ")
     .map((n) => n[0])
@@ -86,7 +68,6 @@ export default function DashboardLayout({
           {/* Logo */}
           <div className="flex items-center gap-2 px-6 py-5 border-b border-border">
             <div className="relative h-10 w-10 shrink-0">
-               {/* shrink-0 to prevent logo squishing if name is long */}
               <Image 
                 src="/logo.png" 
                 alt="Chama Logo" 

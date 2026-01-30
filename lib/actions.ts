@@ -6,6 +6,8 @@ import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { UserRole, TransactionType, LoanStatus } from "@prisma/client";
 
+import { toTitleCase } from "@/lib/utils";
+
 // ============ USER ACTIONS ============
 
 // ============ CHAMA / USER ACTIONS ============
@@ -39,11 +41,15 @@ export async function createChama(data: {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     console.log("✅ [createChama] Password hashed successfully");
     
+    // Capitalize chama name (e.g., "kirwara youth group" -> "Kirwara Youth Group")
+    const capitalizedName = toTitleCase(data.name);
+    console.log("📝 [createChama] Capitalized name:", capitalizedName);
+    
     // Create Chama only - no user yet
     console.log("📝 [createChama] Creating Chama record...");
     const chama = await prisma.chama.create({
       data: {
-        name: data.name,
+        name: capitalizedName,
         email: data.email,
         phone: data.phone,
       },
@@ -188,6 +194,40 @@ export async function updateUserRole(userId: string, role: UserRole) {
   }
 }
 
+export async function updateUser(userId: string, data: { name: string; email: string; phone?: string; role: UserRole; password?: string }) {
+  try {
+    const session = await auth();
+    // Validate admin permissions here if strict
+    
+    // Build update object
+    const updateData: any = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: data.role,
+    };
+
+    // Only hash and update password if provided
+    if (data.password && data.password.trim() !== "") {
+      updateData.password = await bcrypt.hash(data.password, 10);
+    }
+    
+    await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    revalidatePath("/dashboard/members");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error updating user:", error);
+    if (error.code === "P2002") {
+      return { success: false, error: "Email already in use" };
+    }
+    return { success: false, error: "Failed to update user" };
+  }
+}
+
 export async function deleteUser(userId: string) {
   try {
     await prisma.user.delete({
@@ -231,7 +271,14 @@ export async function createTransaction(data: {
     });
 
     revalidatePath("/dashboard/wallet");
-    return { success: true, transaction };
+    
+    // Serialize return data
+    const serializedTransaction = {
+      ...transaction,
+      amount: transaction.amount.toNumber(),
+    };
+    
+    return { success: true, transaction: serializedTransaction };
   } catch (error) {
     console.error("Error creating transaction:", error);
     return { success: false, error: "Failed to create transaction" };
@@ -399,7 +446,21 @@ export async function createLoan(data: {
     });
 
     revalidatePath("/dashboard/loans");
-    return { success: true, loan };
+    
+    // Serialize return data
+    const serializedLoan = {
+      ...loan,
+      amount: loan.amount.toNumber(),
+      interestRate: loan.interestRate.toNumber(),
+      totalRepayable: loan.totalRepayable.toNumber(),
+      balance: loan.balance.toNumber(),
+      guarantors: loan.guarantors.map(g => ({
+        ...g,
+        amount: g.amount.toNumber(),
+      })),
+    };
+    
+    return { success: true, loan: serializedLoan };
   } catch (error) {
     console.error("Error creating loan:", error);
     return { success: false, error: "Failed to create loan" };
@@ -460,6 +521,10 @@ export async function getLoans(userId?: string) {
       interestRate: loan.interestRate.toNumber(),
       totalRepayable: loan.totalRepayable.toNumber(),
       balance: loan.balance.toNumber(),
+      guarantors: loan.guarantors.map(guarantor => ({
+        ...guarantor,
+        amount: guarantor.amount.toNumber(),
+      })),
     }));
 
     return { success: true, loans: serializedLoans };
@@ -696,7 +761,15 @@ export async function createAsset(data: {
     });
 
     revalidatePath("/dashboard/investments");
-    return { success: true, asset };
+    
+    // Serialize return data
+    const serializedAsset = {
+      ...asset,
+      purchasePrice: asset.purchasePrice.toNumber(),
+      currentValue: asset.currentValue.toNumber(),
+    };
+    
+    return { success: true, asset: serializedAsset };
   } catch (error) {
     console.error("Error creating asset:", error);
     return { success: false, error: "Failed to create asset" };
