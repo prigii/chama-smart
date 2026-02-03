@@ -5,16 +5,16 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
-      chamaId: string;
-      chamaName: string;
+      chamaId: string | null;
+      chamaName?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     id: string;
     role: string;
-    chamaId: string;
-    chamaName: string;
+    chamaId: string | null;
+    chamaName?: string;
   }
 }
 
@@ -22,7 +22,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
-    chamaId: string;
-    chamaName: string;
+    chamaId: string | null;
+    chamaName?: string;
   }
 }
