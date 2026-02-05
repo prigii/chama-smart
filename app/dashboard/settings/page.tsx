@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { updateUser } from "@/lib/actions";
-import { Upload, User } from "lucide-react";
+import { Upload, User, Smartphone, CreditCard, Landmark } from "lucide-react";
+import { IntegrationCard } from "@/components/integrations/integration-card";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -108,9 +109,10 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="chama">Chama Settings</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="integrations">Integrations</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
@@ -207,8 +209,8 @@ export default function SettingsPage() {
           <TabsContent value="chama" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Integrations</CardTitle>
-                <CardDescription>Configure M-Pesa Paybill and Till numbers</CardDescription>
+                <CardTitle>Chama Configuration</CardTitle>
+                <CardDescription>General settings for your group</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleChamaUpdate} className="space-y-4 max-w-lg">
@@ -255,6 +257,32 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
         )}
+
+        {isAdmin && (
+          <TabsContent value="integrations" className="mt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <IntegrationCard 
+                title="M-Pesa (Daraja)"
+                description="Connect Safaricom M-Pesa for instant payments and STK Push."
+                type="MPESA"
+                icon={<Smartphone className="w-8 h-8 text-green-600" />}
+              />
+              <IntegrationCard 
+                title="Paystack"
+                description="Accept card payments and bank transfers globally."
+                type="PAYSTACK"
+                icon={<CreditCard className="w-8 h-8 text-blue-600" />}
+              />
+              <IntegrationCard 
+                title="Bank (KCB/Equity)"
+                description="Receive automated alerts from your bank account."
+                type="BANK"
+                icon={<Landmark className="w-8 h-8 text-purple-600" />}
+              />
+            </div>
+          </TabsContent>
+        )}
+
       </Tabs>
     </div>
   );

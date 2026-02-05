@@ -79,20 +79,30 @@ export default function DashboardLayout({
       <div className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border">
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-2 px-6 py-5 border-b border-border">
-            <div className="relative h-10 w-10 shrink-0">
-              <Image 
-                src="/logo.png" 
-                alt="Chama Logo" 
-                fill
-                className="object-contain"
-              />
+          <div className="flex flex-col gap-4 px-6 py-6 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="relative h-6 w-6 shrink-0 opacity-80">
+                <Image 
+                  src="/icon.png" 
+                  alt="App Icon" 
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <span className="text-xs font-semibold tracking-wider uppercase text-muted-foreground/80">
+                chamasmart
+              </span>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground leading-tight line-clamp-2" title={chamaName}>
-                {chamaName}
-              </h1>
-              <p className="text-xs text-muted-foreground">Investment Group</p>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-600/20">
+                {chamaInitials}
+              </div>
+              <div>
+                <h1 className="text-sm font-bold text-foreground leading-tight line-clamp-2" title={chamaName}>
+                  {chamaName}
+                </h1>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-0.5">Investment Group</p>
+              </div>
             </div>
           </div>
 

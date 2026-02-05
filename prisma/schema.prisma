@@ -33,6 +33,13 @@ enum LoanStatus {
   DEFAULTED
 }
 
+enum IntegrationType {
+  MPESA
+  PAYSTACK
+  KCB
+  EQUITY
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -55,14 +62,38 @@ model User {
 }
 
 model Chama {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  users     User[]
-  assets    Asset[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  phone         String?
+  users         User[]
+  assets        Asset[]
+  integrations  Integration[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Integration {
+  id          String          @id @default(cuid())
+  type        IntegrationType
+  name        String?         // Optional display name
+  config      Json            // Keys: consumerKey, consumerSecret, passkey, secretKey, etc.
+  isEnabled   Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  chamaId     String
+  chama       Chama           @relation(fields: [chamaId], references: [id])
+}
+
+model TransactionAlert {
+  id              String   @id @default(cuid())
+  externalId      String?  @unique // M-Pesa Receipt Number, Paystack Ref
+  provider        IntegrationType
+  amount          Decimal  @db.Decimal(10, 2)
+  payload         Json     // Raw webhook data
+  status          String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  createdAt       DateTime @default(now())
 }
 
 model Transaction {

@@ -1,6 +1,14 @@
-import { getDashboardStats, getTransactions, getLoans, getMemberStats } from "@/lib/actions";
+import { 
+  getDashboardStats, 
+  getTransactions, 
+  getLoans, 
+  getMemberStats, 
+  getPendingLoanRequests, 
+  getUnprocessedAlerts,
+  getGuarantees
+} from "@/lib/actions";
 import { auth } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,33 +26,55 @@ import {
   PlusCircle,
   PiggyBank,
   Calendar,
-  CreditCard
+  CreditCard,
+  Zap,
+  CheckCircle2,
+  Smartphone,
+  ArrowRight,
+  Clock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import TransactionChart from "@/components/shared/TransactionChart";
 import TransactionTypeChart from "@/components/shared/TransactionTypeChart";
+import { DashboardRefresh } from "@/components/shared/dashboard-refresh";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardOverviewPage() {
   const session = await auth();
   const role = session?.user?.role || "MEMBER";
   const isMember = role === "MEMBER";
 
-  const statsResult = await getDashboardStats();
-  const transactionsResult = await getTransactions();
-  const loansResult = await getLoans();
-  const memberStatsResult = isMember ? await getMemberStats() : null;
+  const [
+    statsResult,
+    transactionsResult,
+    loansResult,
+    memberStatsResult,
+    pendingLoansResult,
+    pendingAlertsResult,
+    guaranteesResult,
+  ] = await Promise.all([
+    getDashboardStats(),
+    getTransactions(),
+    getLoans(),
+    isMember ? getMemberStats() : Promise.resolve(null),
+    getPendingLoanRequests(),
+    !isMember ? getUnprocessedAlerts() : Promise.resolve(null),
+    isMember ? getGuarantees() : Promise.resolve(null),
+  ]);
 
   const stats = statsResult.success ? statsResult.stats : null;
   const memberStats = memberStatsResult?.success ? memberStatsResult.stats : null;
-  const allTransactions = transactionsResult.success 
-    ? transactionsResult.transactions 
-    : [];
-  const recentLoans = loansResult.success 
-    ? loansResult.loans?.slice(0, 5) 
-    : [];
+  const pendingLoans = pendingLoansResult.success ? (pendingLoansResult.requests ?? []) : [];
+  const pendingAlerts = pendingAlertsResult?.success ? (pendingAlertsResult.alerts ?? []) : [];
+  const pendingGuarantees = (guaranteesResult?.success ? (guaranteesResult.guarantees ?? []) : []).filter((g: any) => !g?.accepted);
+  
+  const allTransactions = transactionsResult.success ? (transactionsResult.transactions ?? []) : [];
+  const recentLoans = loansResult.success ? (loansResult.loans?.slice(0, 5) ?? []) : [];
 
   return (
     <div className="space-y-8">
+      <DashboardRefresh intervalMs={30000} />
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
@@ -241,7 +271,7 @@ export default async function DashboardOverviewPage() {
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
           <CardContent className="flex items-center gap-3 pt-6">
             <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-orange-900 dark:text-orange-200">
                 {stats.overdueLoans ?? 0} loan{(stats.overdueLoans ?? 0) > 1 ? "s" : ""} overdue
               </p>
@@ -249,9 +279,150 @@ export default async function DashboardOverviewPage() {
                 Please review and follow up on overdue payments
               </p>
             </div>
+            <Link href="/dashboard/loans">
+              <Button variant="outline" size="sm" className="border-orange-200 hover:bg-orange-100">
+                Review Now
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}
+
+      {/* Pending Guarantees Alert - Visible to members */}
+      {isMember && pendingGuarantees.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+          <CardContent className="flex items-center gap-3 pt-6">
+            <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex-1">
+              <p className="font-medium text-blue-900 dark:text-blue-200">
+                {pendingGuarantees.length} pending guarantorship request{pendingGuarantees.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Other members have requested you to guarantee their loans.
+              </p>
+            </div>
+            <Link href="/dashboard/guarantees">
+              <Button variant="outline" size="sm" className="border-blue-200 hover:bg-blue-100">
+                Review Requests
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pending Loan Requests */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle>Pending Loan Requests</CardTitle>
+              <p className="text-sm text-gray-500">
+                {isMember ? "Your submmitted requests" : "Member requests awaiting approval"}
+              </p>
+            </div>
+            <Badge variant="outline" className="h-6">
+              {pendingLoans.length}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            {pendingLoans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <CheckCircle2 className="h-8 w-8 text-green-500 mb-2 opacity-20" />
+                <p className="text-sm text-gray-500">No pending requests</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingLoans.map((loan: any) => (
+                  <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                    <div>
+                      <p className="font-medium text-sm">{loan.borrower.name}</p>
+                      <p className="text-xs text-gray-500">{formatCurrency(loan.amount)} • {loan.durationMonths}mo</p>
+                    </div>
+                    <Link href="/dashboard/loans">
+                      <Button size="sm" variant="ghost" className="h-8">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Unprocessed Alerts (Admin) or Wallet Quick Link (Member) */}
+        {!isMember ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="space-y-1">
+                <CardTitle>Automatic Alerts</CardTitle>
+                <p className="text-sm text-gray-500">M-Pesa/Bank payments requiring matching</p>
+              </div>
+              <Badge variant="outline" className="h-6">
+                {pendingAlerts.length}
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              {pendingAlerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Zap className="h-8 w-8 text-blue-500 mb-2 opacity-20" />
+                  <p className="text-sm text-gray-500">System is all synced up</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingAlerts.map((alert: any) => (
+                    <div key={alert.id} className="flex items-center justify-between p-3 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="text-[10px] h-4 px-1">{alert.provider}</Badge>
+                          <p className="font-medium text-sm">{formatCurrency(alert.amount)}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Ref: {alert.externalId}</p>
+                      </div>
+                      <Link href="/dashboard/wallet">
+                        <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700">
+                          Match
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-white">Quick Payment</CardTitle>
+              <CardDescription className="text-blue-100 italic">
+                Contributions made via M-Pesa reflect on your dashboard instantly.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 mt-2">
+                <div className="flex items-center justify-between bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-lg">
+                      <Smartphone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Automatic M-Pesa</p>
+                      <p className="text-xs text-blue-100 opacity-80">Use Paybill: 123456</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 opacity-50" />
+                </div>
+                <Link href="/dashboard/wallet">
+                  <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 font-bold border-none h-12">
+                    Open Wallet to Contribute
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

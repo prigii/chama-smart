@@ -105,8 +105,8 @@ export async function createUser(data: {
       select: { chamaId: true, role: true },
     });
 
-    if (adminUser?.role !== "ADMIN" || !adminUser.chamaId) {
-       return { success: false, error: "Unauthorized: Only Admins can create members" };
+    if (!adminUser || adminUser.role === "MEMBER" || !adminUser.chamaId) {
+       return { success: false, error: "Unauthorized: Only Admins or Treasurers can create members" };
     }
 
     const rawPassword = data.password || "Member123!";
@@ -300,8 +300,8 @@ export async function getTransactions(userId?: string) {
 
     if (!caller?.chamaId) return { success: false, error: "No Chama context" };
 
-    // Security: If not admin, force userId to be their own id
-    const filterUserId = caller.role === "ADMIN" ? userId : session.user.id;
+    // Security: If not admin/treasurer, force userId to be their own id
+    const filterUserId = (caller.role === "ADMIN" || caller.role === "TREASURER") ? userId : session.user.id;
 
     const transactions = await prisma.transaction.findMany({
       where: {
@@ -395,6 +395,29 @@ export async function getTransactionStats() {
   }
 }
 
+export async function getUnprocessedAlerts() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const alerts = await prisma.transactionAlert.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { 
+      success: true, 
+      alerts: alerts.map((a: any) => ({
+        ...a,
+        amount: a.amount.toNumber()
+      })) 
+    };
+  } catch (error) {
+    console.error("Error fetching alerts:", error);
+    return { success: false, error: "Failed to fetch alerts" };
+  }
+}
+
 // ============ LOAN ACTIONS ============
 
 export async function createLoan(data: {
@@ -446,6 +469,8 @@ export async function createLoan(data: {
     });
 
     revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/overview");
+    revalidatePath("/dashboard/guarantees");
     
     // Serialize return data
     const serializedLoan = {
@@ -481,13 +506,13 @@ export async function getLoans(userId?: string) {
 
     if (!caller?.chamaId) return { success: false, error: "No Chama context" };
 
-    const filterUserId = caller.role === "ADMIN" ? userId : session.user.id;
+    const filterUserId = (caller.role === "ADMIN" || caller.role === "TREASURER") ? userId : session.user.id;
 
     const loans = await prisma.loan.findMany({
       where: {
         AND: [
           filterUserId ? { borrowerId: filterUserId } : {},
-          { borrower: { chamaId: caller.chamaId } }
+          { borrower: { chama: { id: caller.chamaId } } }
         ]
       },
       include: {
@@ -559,6 +584,8 @@ export async function updateLoanStatus(loanId: string, status: LoanStatus) {
     }
 
     revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/overview");
+    revalidatePath("/dashboard/guarantees");
     return { success: true };
   } catch (error) {
     console.error("Error updating loan status:", error);
@@ -598,6 +625,8 @@ export async function recordLoanRepayment(loanId: string, amount: number, refere
     ]);
 
     revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/overview");
+    revalidatePath("/dashboard/wallet");
     return { success: true };
   } catch (error) {
     console.error("Error recording loan repayment:", error);
@@ -614,6 +643,7 @@ export async function approveGuarantorship(guarantorId: string) {
 
     revalidatePath("/dashboard/loans");
     revalidatePath("/dashboard/guarantees");
+    revalidatePath("/dashboard/overview");
     return { success: true };
   } catch (error) {
     console.error("Error approving guarantorship:", error);
@@ -670,6 +700,49 @@ export async function getLoanStats() {
   } catch (error) {
     console.error("Error fetching loan stats:", error);
     return { success: false, error: "Failed to fetch loan stats" };
+  }
+}
+
+export async function getPendingLoanRequests() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const caller = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { chamaId: true, role: true },
+    });
+
+    if (!caller?.chamaId) return { success: false, error: "No Chama context" };
+
+    const filter = (caller.role === "ADMIN" || caller.role === "TREASURER") ? {} : { borrowerId: session.user.id };
+
+    const requests = await prisma.loan.findMany({
+      where: {
+        status: "PENDING",
+        ...filter,
+        borrower: {
+          chama: { id: caller.chamaId },
+        }
+      },
+      include: {
+        borrower: {
+          select: { name: true, email: true }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return { 
+      success: true, 
+      requests: requests.map(r => ({
+        ...r,
+        amount: r.amount.toNumber()
+      })) 
+    };
+  } catch (error) {
+    console.error("Error fetching pending loans:", error);
+    return { success: false, error: "Failed to fetch pending loans" };
   }
 }
 

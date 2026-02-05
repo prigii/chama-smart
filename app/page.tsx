@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { createChama, createFirstAdmin } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
-import { getPhoneValidationError, formatKenyanPhone } from "@/lib/utils";
+import { getPhoneValidationError, formatKenyanPhone, cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -264,14 +264,17 @@ export default function LandingPage() {
               </span>
             </div>
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-4">
+            {/* Desktop Menu - Centered */}
+            <div className="hidden md:flex flex-1 items-center justify-center gap-8">
               <button onClick={() => scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-blue-600 transition">Features</button>
               <button onClick={() => scrollTo("about")} className="text-sm font-medium text-muted-foreground hover:text-blue-600 transition">About</button>
               <button onClick={() => scrollTo("pricing")} className="text-sm font-medium text-muted-foreground hover:text-blue-600 transition">Pricing</button>
               <button onClick={() => scrollTo("faq")} className="text-sm font-medium text-muted-foreground hover:text-blue-600 transition">FAQ</button>
+            </div>
+
+            <div className="hidden md:flex items-center gap-4">
               <ThemeToggle />
-              <Button onClick={() => scrollTo("auth-section")} variant="default" className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => scrollTo("auth-section")} variant="default" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 transition-opacity border-none shadow-md">
                 Get Started
               </Button>
             </div>
@@ -321,11 +324,11 @@ export default function LandingPage() {
               The smart way to grow your Chama's wealth.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20" onClick={() => scrollTo("auth-section")}>
+              <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 transition-opacity shadow-lg shadow-blue-600/20 border-none px-8" onClick={() => scrollTo("auth-section")}>
                 Start Your Chama
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" onClick={() => scrollTo("features")}>
+              <Button size="lg" variant="outline" onClick={() => scrollTo("features")} className="border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-8 transition-all">
                 Explore Features
               </Button>
             </div>
@@ -493,31 +496,37 @@ export default function LandingPage() {
               icon={Users} 
               title="Member Management" 
               desc="Easily add members, assign roles (Treasurer, Admin), and track individual activity."
+              colorClass="bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
             />
             <FeatureCard 
               icon={PieChart} 
               title="Financial Tracking" 
               desc="Record deposits, withdrawals, and expenses with M-Pesa reference codes."
+              colorClass="bg-gradient-to-br from-green-500 to-emerald-600 text-white"
             />
             <FeatureCard 
               icon={TrendingUp} 
               title="Loan Management" 
               desc="Full table banking suite: Create loans, assign guarantors, and track repayments."
+              colorClass="bg-gradient-to-br from-orange-500 to-amber-600 text-white"
             />
             <FeatureCard 
               icon={Shield} 
               title="Secure & Transparent" 
               desc="Bank-grade security for your data with transparent records visible to members."
+              colorClass="bg-gradient-to-br from-purple-500 to-pink-600 text-white"
             />
             <FeatureCard 
               icon={Smartphone} 
               title="Mobile Friendly" 
               desc="Access your dashboard from any device. Perfect for meetings on the go."
+              colorClass="bg-gradient-to-br from-cyan-500 to-blue-600 text-white"
             />
             <FeatureCard 
               icon={Workflow} 
               title="Automated Reports" 
               desc="Instant summaries of cash at hand, total assets, and loan portfolio performance."
+              colorClass="bg-gradient-to-br from-indigo-500 to-blue-700 text-white"
             />
           </div>
         </div>
@@ -612,23 +621,29 @@ export default function LandingPage() {
             <h2 className="text-3xl font-bold text-foreground">Simple, Transparent Pricing</h2>
             <p className="text-muted-foreground mt-4">Start for free, upgrade as you grow.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <PricingCard 
-              title="Starter" 
-              price="Free" 
+              title="Free" 
+              price="KES 0" 
               features={["Up to 5 Members", "Basic Ledger", "1 Admin", "Email Support"]}
             />
              <PricingCard 
               title="Growth" 
-              price="KES 500" 
+              price="KES 1,000" 
+              period="/mo"
+              features={["Up to 25 Members", "Loan Management", "Investment Tracking", "2 Admins"]}
+            />
+             <PricingCard 
+              title="Professional" 
+              price="KES 2,500" 
               period="/mo"
               isPopular
-              features={["Up to 20 Members", "Loans Management", "Investment Tracking", "Priority Support", "2 Admins"]}
+              features={["Up to 100 Members", "Advanced Reporting", "Multiple Admins", "SMS Alerts", "Priority Support"]}
             />
              <PricingCard 
               title="Enterprise" 
               price="Custom" 
-              features={["Unlimited Members", "Custom Features", "Dedicated Account Manager", "API Access", "Multiple Admins"]}
+              features={["Unlimited Members", "Custom Integrations", "Dedicated Support", "API Access", "Multiple Admins"]}
             />
           </div>
         </div>
@@ -715,14 +730,17 @@ export default function LandingPage() {
   );
 }
 
-function FeatureCard({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) {
+function FeatureCard({ icon: Icon, title, desc, colorClass }: { icon: any, title: string, desc: string, colorClass?: string }) {
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border border-border hover:shadow-md transition">
-      <div className="h-12 w-12 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center mb-4">
-        <Icon className="h-6 w-6" />
+    <div className="bg-card p-8 rounded-2xl shadow-sm border border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group text-center">
+      <div className={cn(
+        "h-16 w-16 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg group-hover:scale-110 transition-transform duration-300",
+        colorClass || "bg-gradient-to-br from-blue-500 to-indigo-600 text-white"
+      )}>
+        <Icon className="h-8 w-8" />
       </div>
-      <h3 className="text-lg font-bold text-foreground mb-2">{title}</h3>
-      <p className="text-muted-foreground text-sm">{desc}</p>
+      <h3 className="text-xl font-bold text-foreground mb-3">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed text-sm">{desc}</p>
     </div>
   );
 }
@@ -748,7 +766,12 @@ function PricingCard({ title, price, period, features, isPopular }: any) {
           </li>
         ))}
       </ul>
-      <Button className={`w-full mt-8 ${isPopular ? "bg-blue-600 hover:bg-blue-700" : ""}`} variant={isPopular ? "default" : "outline"}>
+      <Button className={cn(
+        "w-full mt-8 border transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]",
+        isPopular 
+          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20 border-none hover:opacity-90" 
+          : "bg-white dark:bg-zinc-900 text-foreground border-border hover:bg-blue-600 hover:text-white hover:border-blue-600 shadow-sm"
+      )} variant={isPopular ? "default" : "outline"}>
         Choose Plan
       </Button>
     </div>
