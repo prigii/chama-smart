@@ -1,4 +1,5 @@
-import { getDashboardStats, getTransactions, getLoans } from "@/lib/actions";
+import { getDashboardStats, getTransactions, getLoans, getMemberStats } from "@/lib/actions";
+import { auth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -15,18 +16,26 @@ import {
   ArrowDownRight,
   UserPlus,
   PlusCircle,
-  PiggyBank
+  PiggyBank,
+  Calendar,
+  CreditCard
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import TransactionChart from "@/components/shared/TransactionChart";
 import TransactionTypeChart from "@/components/shared/TransactionTypeChart";
 
 export default async function DashboardOverviewPage() {
+  const session = await auth();
+  const role = session?.user?.role || "MEMBER";
+  const isMember = role === "MEMBER";
+
   const statsResult = await getDashboardStats();
   const transactionsResult = await getTransactions();
   const loansResult = await getLoans();
+  const memberStatsResult = isMember ? await getMemberStats() : null;
 
   const stats = statsResult.success ? statsResult.stats : null;
+  const memberStats = memberStatsResult?.success ? memberStatsResult.stats : null;
   const allTransactions = transactionsResult.success 
     ? transactionsResult.transactions 
     : [];
@@ -39,122 +48,196 @@ export default async function DashboardOverviewPage() {
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back! Here's what's happening with your chama.</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            {isMember 
+              ? "Welcome back! Here is your summary." 
+              : "Welcome back! Here's what's happening with your chama."}
+          </p>
         </div>
 
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-4">
-          <Link href="/dashboard/members?action=new">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
-          </Link>
+          {!isMember && (
+            <Link href="/dashboard/members?action=new">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Member
+              </Button>
+            </Link>
+          )}
+          
           <Link href="/dashboard/wallet">
             <Button className="bg-green-600 hover:bg-green-700 text-white shadow-sm">
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add Transaction
+              {isMember ? "Make Contribution" : "Add Transaction"}
             </Button>
           </Link>
+
           <Link href="/dashboard/loans">
             <Button className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
               <HandCoins className="mr-2 h-4 w-4" />
-              New Loan
+              {isMember ? "Request Loan" : "New Loan"}
             </Button>
           </Link>
-          <Link href="/dashboard/investments">
-            <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm">
-              <Building2 className="mr-2 h-4 w-4" />
-              New Asset
-            </Button>
-          </Link>
+
+          {!isMember && (
+            <Link href="/dashboard/investments">
+              <Button className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm">
+                <Building2 className="mr-2 h-4 w-4" />
+                New Asset
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
       {/* Stats Grid with Icons */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="relative overflow-hidden">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Cash at Hand
-              </CardTitle>
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <Wallet className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {formatCurrency(stats?.cashAtHand || 0)}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              Available balance
-            </p>
-          </CardContent>
-        </Card>
+        {!isMember ? (
+          <>
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Cash at Hand
+                  </CardTitle>
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <Wallet className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(stats?.cashAtHand || 0)}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  Available balance
+                </p>
+              </CardContent>
+            </Card>
 
-        <Card className="relative overflow-hidden">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Active Loans
-              </CardTitle>
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <HandCoins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats?.activeLoans || 0}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ongoing loans</p>
-          </CardContent>
-        </Card>
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Active Loans
+                  </CardTitle>
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <HandCoins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {stats?.activeLoans || 0}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ongoing loans</p>
+              </CardContent>
+            </Card>
 
-        <Card className="relative overflow-hidden">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Members
-              </CardTitle>
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats?.totalMembers || 0}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Registered users</p>
-          </CardContent>
-        </Card>
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Total Members
+                  </CardTitle>
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {stats?.totalMembers || 0}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Registered users</p>
+              </CardContent>
+            </Card>
 
-        <Card className="relative overflow-hidden">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Assets
-              </CardTitle>
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              {formatCurrency(stats?.totalAssets || 0)}
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Investment value</p>
-          </CardContent>
-        </Card>
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Total Assets
+                  </CardTitle>
+                  <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                    <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(stats?.totalAssets || 0)}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Investment value</p>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    My Total Savings
+                  </CardTitle>
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <PiggyBank className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(memberStats?.totalSavings || 0)}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total deposits</p>
+              </CardContent>
+            </Card>
+
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    My Loan Balance
+                  </CardTitle>
+                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <CreditCard className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {formatCurrency(memberStats?.loanBalance || 0)}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Outstanding debt</p>
+              </CardContent>
+            </Card>
+
+            <Card className="relative overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Next Repayment
+                  </CardTitle>
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {memberStats?.nextRepayment ? formatDate(memberStats.nextRepayment) : "-"}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due date</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* Overdue Loans Alert */}
-      {stats && (stats.overdueLoans ?? 0) > 0 && (
+      {/* Overdue Loans Alert - Only visible to admins */}
+      {!isMember && stats && (stats.overdueLoans ?? 0) > 0 && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30">
           <CardContent className="flex items-center gap-3 pt-6">
             <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400" />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { getLoans, createLoan, updateLoanStatus, recordLoanRepayment, getUsers } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,10 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function LoansPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role || "MEMBER";
+  const isMember = role === "MEMBER";
+
   const [loans, setLoans] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,40 +177,53 @@ export default function LoansPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Loans</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage table banking loans</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (open && isMember && session?.user?.id) {
+            setFormData(prev => ({ ...prev, borrowerId: session.user.id }));
+          }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Loan
+              {isMember ? "Request Loan" : "New Loan"}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Loan</DialogTitle>
+              <DialogTitle>{isMember ? "Request Loan" : "Create New Loan"}</DialogTitle>
               <DialogDescription>
-                Set up a new table banking loan with guarantors
+                {isMember ? "Submit a loan request for approval" : "Set up a new table banking loan with guarantors"}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="borrower">Borrower</Label>
-                  <Select
-                    value={formData.borrowerId}
-                    onValueChange={(value) => setFormData({ ...formData, borrowerId: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select borrower" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name} ({user.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {!isMember ? (
+                    <Select
+                      value={formData.borrowerId}
+                      onValueChange={(value) => setFormData({ ...formData, borrowerId: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select borrower" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input 
+                      value={session?.user?.name || "Me"} 
+                      disabled 
+                      className="bg-gray-100"
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="amount">Loan Amount (KES)</Label>
@@ -366,25 +384,32 @@ export default function LoansPage() {
                         {loan.dueDate ? formatDate(loan.dueDate) : "-"}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={loan.status}
-                          onValueChange={(value: any) => handleStatusChange(loan.id, value)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="APPROVED">Approved</SelectItem>
-                            <SelectItem value="ACTIVE">Active</SelectItem>
-                            <SelectItem value="PAID">Paid</SelectItem>
-                            <SelectItem value="REJECTED">Rejected</SelectItem>
-                            <SelectItem value="DEFAULTED">Defaulted</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                        {!isMember ? (
+                          <Select
+                            value={loan.status}
+                            onValueChange={(value: any) => handleStatusChange(loan.id, value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PENDING">Pending</SelectItem>
+                              <SelectItem value="APPROVED">Approved</SelectItem>
+                              <SelectItem value="ACTIVE">Active</SelectItem>
+                              <SelectItem value="PAID">Paid</SelectItem>
+                              <SelectItem value="REJECTED">Rejected</SelectItem>
+                              <SelectItem value="DEFAULTED">Defaulted</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant={getLoanStatusBadge(loan.status)}>
+                            {loan.status}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {loan.status === "ACTIVE" && (
+                        {loan.status === "ACTIVE" && (!isMember || loan.borrowerId === session?.user?.id) && (
                           <Button
                             size="sm"
                             variant="outline"

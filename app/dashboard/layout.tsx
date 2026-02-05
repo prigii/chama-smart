@@ -22,16 +22,26 @@ import {
   TrendingUp,
   LogOut,
   Settings,
+  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const navigation = [
+const adminNavigation = [
   { name: "Overview", href: "/dashboard/overview", icon: LayoutDashboard },
   { name: "Members", href: "/dashboard/members", icon: Users },
   { name: "Wallet", href: "/dashboard/wallet", icon: Wallet },
   { name: "Loans", href: "/dashboard/loans", icon: HandCoins },
-  { name: "Investments", href: "/dashboard/investments", icon: TrendingUp },
+  { name: "Assets", href: "/dashboard/investments", icon: TrendingUp },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+];
+
+const memberNavigation = [
+  { name: "Dashboard", href: "/dashboard/overview", icon: LayoutDashboard },
+  { name: "My Wallet", href: "/dashboard/wallet", icon: Wallet },
+  { name: "Request Loan", href: "/dashboard/loans", icon: HandCoins },
+  { name: "My Guarantees", href: "/dashboard/guarantees", icon: CheckCircle },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({
@@ -59,6 +69,9 @@ export default function DashboardLayout({
     .map((n) => n[0])
     .join("")
     .toUpperCase() || "U";
+
+  const isMember = session?.user?.role === "MEMBER";
+  const navigation = isMember ? memberNavigation : adminNavigation;
 
   return (
     <div className="min-h-screen bg-background">

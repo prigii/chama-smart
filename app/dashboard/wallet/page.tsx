@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { getTransactions, createTransaction, getUsers } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,10 @@ const TRANSACTION_TYPES = [
 ];
 
 export default function WalletPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role || "MEMBER";
+  const isMember = role === "MEMBER";
+
   const [transactions, setTransactions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +57,7 @@ export default function WalletPage() {
     type: "DEPOSIT" as any,
     description: "",
     referenceCode: "",
+    mpesaPhone: "",
   });
 
   useEffect(() => {
@@ -75,12 +81,21 @@ export default function WalletPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Stub M-Pesa Logic
+    if (isMember) {
+      toast.info("Initiating M-Pesa STK Push...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success("M-Pesa payment received!");
+      // Proceed to record
+    }
+
     const result = await createTransaction({
       userId: formData.userId,
       amount: parseFloat(formData.amount),
       type: formData.type,
-      description: formData.description || undefined,
-      referenceCode: formData.referenceCode || undefined,
+      description: formData.description || (isMember ? "M-Pesa Contribution" : undefined),
+      referenceCode: formData.referenceCode || (isMember ? "MPESA_AUTO_" + Date.now().toString().slice(-6) : undefined),
     });
     if (result.success) {
       setDialogOpen(false);
@@ -90,6 +105,7 @@ export default function WalletPage() {
         type: "DEPOSIT",
         description: "",
         referenceCode: "",
+        mpesaPhone: "",
       });
       loadData();
       toast.success("Transaction recorded successfully");
@@ -124,58 +140,73 @@ export default function WalletPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Wallet</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">Track all transactions and savings</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (open && isMember && session?.user?.id) {
+            setFormData(prev => ({
+              ...prev,
+              userId: session.user.id,
+              type: "DEPOSIT",
+              description: "Contribution",
+            }));
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className={isMember ? "bg-green-600 hover:bg-green-700" : ""}>
               <Plus className="mr-2 h-4 w-4" />
-              New Transaction
+              {isMember ? "Make Contribution" : "New Transaction"}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Record Transaction</DialogTitle>
+              <DialogTitle>{isMember ? "Make Contribution" : "Record Transaction"}</DialogTitle>
               <DialogDescription>
-                Add a new transaction to the ledger
+                {isMember ? "Contribute to your chama wallet via Mobile Money" : "Add a new transaction to the ledger"}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="member">Member</Label>
-                <Select
-                  value={formData.userId}
-                  onValueChange={(value) => setFormData({ ...formData, userId: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="type">Transaction Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: any) => setFormData({ ...formData, type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRANSACTION_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isMember && (
+                <div className="space-y-2">
+                  <Label htmlFor="member">Member</Label>
+                  <Select
+                    value={formData.userId}
+                    onValueChange={(value) => setFormData({ ...formData, userId: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {!isMember && (
+                <div className="space-y-2">
+                  <Label htmlFor="type">Transaction Type</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value: any) => setFormData({ ...formData, type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSACTION_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount (KES)</Label>
                 <Input
@@ -197,16 +228,27 @@ export default function WalletPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reference">M-Pesa Code (Optional)</Label>
+                <Label htmlFor="reference">{isMember ? "M-Pesa Number" : "M-Pesa Code (Optional)"}</Label>
                 <Input
                   id="reference"
-                  value={formData.referenceCode}
-                  onChange={(e) => setFormData({ ...formData, referenceCode: e.target.value })}
-                  placeholder="e.g., QGH7XYZ123"
+                  value={isMember ? formData.mpesaPhone : formData.referenceCode}
+                  onChange={(e) => setFormData(isMember 
+                    ? { ...formData, mpesaPhone: e.target.value } 
+                    : { ...formData, referenceCode: e.target.value }
+                  )}
+                  placeholder={isMember ? "0712345678" : "e.g., QGH7XYZ123"}
+                  required={isMember}
                 />
               </div>
+
+              {!isMember && (
+                <div className="space-y-2">
+                  <Label htmlFor="receipt">Upload Receipt (Optional)</Label>
+                  <Input id="receipt" type="file" className="cursor-pointer" />
+                </div>
+              )}
               <Button type="submit" className="w-full">
-                Record Transaction
+                {isMember ? "Pay with M-Pesa" : "Record Transaction"}
               </Button>
             </form>
           </DialogContent>

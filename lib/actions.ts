@@ -613,6 +613,7 @@ export async function approveGuarantorship(guarantorId: string) {
     });
 
     revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/guarantees");
     return { success: true };
   } catch (error) {
     console.error("Error approving guarantorship:", error);
@@ -881,5 +882,92 @@ export async function getDashboardStats() {
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     return { success: false, error: "Failed to fetch dashboard stats" };
+  }
+}
+
+export async function getMemberStats() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    
+    const userId = session.user.id;
+
+    // 1. Total Savings (Deposits - Withdrawals)
+    const deposits = await prisma.transaction.aggregate({
+      where: { userId, type: "DEPOSIT" },
+      _sum: { amount: true },
+    });
+
+    const withdrawals = await prisma.transaction.aggregate({
+      where: { userId, type: "WITHDRAWAL" },
+      _sum: { amount: true },
+    });
+    
+    // 2. Active Loan Balance
+    const loans = await prisma.loan.findMany({
+      where: { borrowerId: userId, status: "ACTIVE" },
+      select: { balance: true, dueDate: true },
+    });
+    
+    const loanBalance = loans.reduce((sum, loan) => sum + loan.balance.toNumber(), 0);
+    
+    // 3. Next Repayment Date (Earliest due date of active loans)
+    const nextRepayment = loans
+      .filter(l => l.dueDate && l.dueDate > new Date())
+      .sort((a, b) => (a.dueDate!.getTime() - b.dueDate!.getTime()))[0]?.dueDate || null;
+
+    const totalSavings = (deposits._sum.amount?.toNumber() || 0) - (withdrawals._sum.amount?.toNumber() || 0);
+
+    return {
+      success: true,
+      stats: {
+        totalSavings,
+        loanBalance,
+        nextRepayment,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching member stats:", error);
+    return { success: false, error: "Failed to fetch stats" };
+  }
+}
+
+export async function getGuarantees() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const guarantees = await prisma.loanGuarantor.findMany({
+      where: { userId: session.user.id },
+      include: {
+        loan: {
+          select: {
+            borrower: {
+              select: { name: true, email: true }
+            },
+            amount: true,
+            status: true,
+            createdAt: true,
+          }
+        }
+      },
+      orderBy: {
+        loan: { createdAt: 'desc' }
+      }
+    });
+
+    const serializedGuarantees = guarantees.map(g => ({
+      ...g,
+      amount: g.amount.toNumber(),
+      loan: {
+        ...g.loan,
+        amount: g.loan.amount.toNumber(),
+      }
+    }));
+
+    return { success: true, guarantees: serializedGuarantees };
+  } catch (error) {
+    console.error("Error fetching guarantees:", error);
+    return { success: false, error: "Failed to fetch guarantees" };
   }
 }

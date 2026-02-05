@@ -3,6 +3,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { getUsers, createUser, updateUser, updateUserRole, deleteUser } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,10 @@ export default function MembersPage() {
 }
 
 function MembersPageContent() {
+  const { data: session } = useSession();
+  const role = session?.user?.role || "MEMBER";
+  const isMember = role === "MEMBER";
+
   const searchParams = useSearchParams();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,100 +252,103 @@ function MembersPageContent() {
           <h1 className="text-3xl font-bold text-gray-900">Members</h1>
           <p className="text-gray-600 mt-1">Manage your chama members</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{isEditing ? "Edit Member" : "Add New Member"}</DialogTitle>
-              <DialogDescription>
-                {isEditing ? "Update member details" : "Create a new member account for your chama"}
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  onBlur={handleNameBlur}
-                  placeholder="e.g., John Doe"
-                  className={nameError ? "border-red-500" : ""}
-                  required
-                />
-                {nameError && (
-                  <p className="text-sm text-red-600">{nameError}</p>
-                )}
-                <p className="text-xs text-gray-500">
-                  Enter at least two names. Names will be automatically capitalized.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password {isEditing && "(Leave blank to keep current)"}</Label>
-                <PasswordInput
-                  id="password"
-                  value={formData.password}
-                  onChange={(value) => setFormData({ ...formData, password: value })}
-                  placeholder={isEditing ? "••••••••" : "Enter password"}
-                  autoComplete="new-password"
-                  required={!isEditing}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone (Optional)</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  onBlur={handlePhoneBlur}
-                  placeholder="e.g., +254712345678 or 0712345678"
-                  className={phoneError ? "border-red-500" : ""}
-                />
-                {phoneError && (
-                  <p className="text-sm text-red-600">{phoneError}</p>
-                )}
-                <p className="text-xs text-gray-500">
-                  Kenyan phone numbers will be automatically formatted.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: any) => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MEMBER">Member</SelectItem>
-                    <SelectItem value="TREASURER">Treasurer</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full">
-                {isEditing ? "Update Member" : "Create Member"}
+
+        {!isMember && (
+          <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Member
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{isEditing ? "Edit Member" : "Add New Member"}</DialogTitle>
+                <DialogDescription>
+                  {isEditing ? "Update member details" : "Create a new member account for your chama"}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onBlur={handleNameBlur}
+                    placeholder="e.g., John Doe"
+                    className={nameError ? "border-red-500" : ""}
+                    required
+                  />
+                  {nameError && (
+                    <p className="text-sm text-red-600">{nameError}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Enter at least two names. Names will be automatically capitalized.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password {isEditing && "(Leave blank to keep current)"}</Label>
+                  <PasswordInput
+                    id="password"
+                    value={formData.password}
+                    onChange={(value) => setFormData({ ...formData, password: value })}
+                    placeholder={isEditing ? "••••••••" : "Enter password"}
+                    autoComplete="new-password"
+                    required={!isEditing}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone (Optional)</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    onBlur={handlePhoneBlur}
+                    placeholder="e.g., +254712345678 or 0712345678"
+                    className={phoneError ? "border-red-500" : ""}
+                  />
+                  {phoneError && (
+                    <p className="text-sm text-red-600">{phoneError}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Kenyan phone numbers will be automatically formatted.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MEMBER">Member</SelectItem>
+                      <SelectItem value="TREASURER">Treasurer</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full">
+                  {isEditing ? "Update Member" : "Create Member"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card>
@@ -362,7 +370,7 @@ function MembersPageContent() {
                   <TableHead>Transactions</TableHead>
                   <TableHead>Loans</TableHead>
                   <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {!isMember && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -402,43 +410,49 @@ function MembersPageContent() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value: any) => handleRoleChange(user.id, value)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="MEMBER">Member</SelectItem>
-                            <SelectItem value="TREASURER">Treasurer</SelectItem>
-                            <SelectItem value="ADMIN">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        {isMember ? (
+                          <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
+                        ) : (
+                          <Select
+                            value={user.role}
+                            onValueChange={(value: any) => handleRoleChange(user.id, value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MEMBER">Member</SelectItem>
+                              <SelectItem value="TREASURER">Treasurer</SelectItem>
+                              <SelectItem value="ADMIN">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </TableCell>
                       <TableCell>{user._count.transactions}</TableCell>
                       <TableCell>{user._count.loans}</TableCell>
                       <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(user.createdAt)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(user)}
-                          >
-                            <Edit className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(user.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {!isMember && (
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(user)}
+                            >
+                              <Edit className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
