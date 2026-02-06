@@ -27,15 +27,17 @@ A **Progressive Web App (PWA)** for managing Kenyan Investment Groups (Chamas), 
 ### 💼 Core Business Features
 1. **Dashboard** - Real-time overview of group finances and activities
 2. **Member Management** - Role-based access (Admin, Treasurer, Member)
-3. **Transactions** - Complete ledger with M-Pesa integration support
-4. **Table Banking** - Loan management with guarantor approval system
-5. **Investment Tracking** - Portfolio management with valuation tracking
-6. **Financial Reports** - Automated reporting and analytics
+3. **Cloud Branding** - Custom Chama logos and Profile Pictures via **UploadThing**
+4. **Transactions** - Complete ledger with M-Pesa integration support
+5. **Table Banking** - Loan management with guarantor approval system
+6. **Investment Tracking** - Portfolio management with valuation tracking
+7. **Financial Reports** - Automated reporting and analytics
 
 ## 🛠️ Tech Stack
 
 - **Framework:** Next.js 16.1.5 (App Router, Turbopack)
 - **Language:** TypeScript 5
+- **Cloud Storage:** **UploadThing** (for all images/branding)
 - **Styling:** Tailwind CSS v4
 - **UI Components:** Shadcn/ui (Radix UI) + Lucide React icons
 - **Database:** Neon Postgres (Serverless)
@@ -74,6 +76,7 @@ cp .env.example .env
 DATABASE_URL="your-neon-postgres-url"
 DIRECT_URL="your-neon-direct-url"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"  # Change to your domain in production
+UPLOADTHING_TOKEN="your-secret-token"        # Get from uploadthing.com
 ```
 
 4. **Run database migrations:**

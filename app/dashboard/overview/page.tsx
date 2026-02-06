@@ -151,7 +151,7 @@ export default async function DashboardOverviewPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Active Loans
+                    Ongoing Loans
                   </CardTitle>
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                     <HandCoins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -162,7 +162,7 @@ export default async function DashboardOverviewPage() {
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {stats?.activeLoans || 0}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Ongoing loans</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total unpaid loans</p>
               </CardContent>
             </Card>
 

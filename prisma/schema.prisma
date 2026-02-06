@@ -66,6 +66,7 @@ model Chama {
   name          String
   email         String        @unique
   phone         String?
+  logo          String?       // Base64 or URL for the group logo
   users         User[]
   assets        Asset[]
   integrations  Integration[]

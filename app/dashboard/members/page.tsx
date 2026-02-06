@@ -365,11 +365,11 @@ function MembersPageContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Member</TableHead>
-                  <TableHead>Contact</TableHead>
+                  <TableHead className="hidden md:table-cell">Contact</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Transactions</TableHead>
-                  <TableHead>Loans</TableHead>
-                  <TableHead>Joined</TableHead>
+                  <TableHead className="hidden lg:table-cell">Transactions</TableHead>
+                  <TableHead className="hidden lg:table-cell">Loans</TableHead>
+                  <TableHead className="hidden md:table-cell">Joined</TableHead>
                   {!isMember && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -385,17 +385,18 @@ function MembersPageContent() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-blue-100 text-blue-700">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
                               {initials}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-gray-100">{user.name}</p>
+                          <div className="flex flex-col">
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">{user.name}</p>
+                            <p className="text-[10px] text-gray-500 md:hidden">{user.email}</p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                             <Mail className="h-3 w-3" />
@@ -411,13 +412,13 @@ function MembersPageContent() {
                       </TableCell>
                       <TableCell>
                         {isMember ? (
-                          <Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge>
+                          <Badge variant={getRoleBadgeVariant(user.role)} className="text-[10px] px-1 h-5">{user.role}</Badge>
                         ) : (
                           <Select
                             value={user.role}
                             onValueChange={(value: any) => handleRoleChange(user.id, value)}
                           >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-24 md:w-32 h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -428,9 +429,9 @@ function MembersPageContent() {
                           </Select>
                         )}
                       </TableCell>
-                      <TableCell>{user._count.transactions}</TableCell>
-                      <TableCell>{user._count.loans}</TableCell>
-                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                      <TableCell className="hidden lg:table-cell">{user._count.transactions}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{user._count.loans}</TableCell>
+                      <TableCell className="hidden md:table-cell className text-sm text-gray-600 dark:text-gray-400">
                         {formatDate(user.createdAt)}
                       </TableCell>
                       {!isMember && (

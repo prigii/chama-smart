@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { getLoans, createLoan, updateLoanStatus, recordLoanRepayment, getUsers } from "@/lib/actions";
+import { getLoans, createLoan, updateLoanStatus, recordLoanRepayment, getUsers, updateLoan, deleteLoan, adjustLoanBalance } from "@/lib/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,19 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -31,7 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle, XCircle, DollarSign } from "lucide-react";
+import { Plus, CheckCircle, XCircle, DollarSign, MoreHorizontal, Edit, Trash2, Scale, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -62,6 +71,72 @@ export default function LoansPage() {
     amount: "",
     referenceCode: "",
   });
+
+  const [adjustmentDialog, setAdjustmentDialog] = useState<{ open: boolean; loanId: string; balance: string; note: string }>({
+    open: false,
+    loanId: "",
+    balance: "",
+    note: "",
+  });
+
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; loanId: string }>({
+    open: false,
+    loanId: "",
+  });
+
+  const [editDialog, setEditDialog] = useState<{ open: boolean; loanId: string; amount: string; interest: string; duration: string }>({
+    open: false,
+    loanId: "",
+    amount: "",
+    interest: "",
+    duration: "",
+  });
+
+  const handleAdjustBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await adjustLoanBalance(
+      adjustmentDialog.loanId,
+      parseFloat(adjustmentDialog.balance),
+      adjustmentDialog.note
+    );
+
+    if (result.success) {
+      setAdjustmentDialog({ ...adjustmentDialog, open: false });
+      loadData();
+      toast.success("Balance adjusted successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to adjust balance");
+    }
+  };
+
+  const handleDeleteLoan = async () => {
+    const result = await deleteLoan(deleteDialog.loanId);
+    if (result.success) {
+      setDeleteDialog({ open: false, loanId: "" });
+      loadData();
+      toast.success("Loan deleted successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to delete loan");
+    }
+  };
+
+  const handleEditLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await updateLoan(editDialog.loanId, {
+      amount: parseFloat(editDialog.amount),
+      interestRate: parseFloat(editDialog.interest),
+      durationMonths: parseInt(editDialog.duration),
+    });
+
+    if (result.success) {
+      setEditDialog({ ...editDialog, open: false });
+      loadData();
+      toast.success("Loan updated successfully");
+    } else {
+      toast.error(String(result.error) || "Failed to update loan");
+    }
+  };
+
 
   useEffect(() => {
     loadData();
@@ -168,8 +243,10 @@ export default function LoansPage() {
   };
 
   const calculateProgress = (balance: number, total: number) => {
+    if (total <= 0) return 0;
     const paid = total - balance;
-    return (paid / total) * 100;
+    const percentage = (paid / total) * 100;
+    return Math.min(Math.max(percentage, 0), 100);
   };
 
   return (
@@ -181,7 +258,7 @@ export default function LoansPage() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
-          if (open && isMember && session?.user?.id) {
+          if (open && session?.user?.id) {
             setFormData(prev => ({ ...prev, borrowerId: session.user.id }));
           }
         }}>
@@ -212,11 +289,18 @@ export default function LoansPage() {
                         <SelectValue placeholder="Select borrower" />
                       </SelectTrigger>
                       <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.email})
+                        {session?.user?.id && (
+                          <SelectItem value={session.user.id}>
+                            Me ({session.user.name})
                           </SelectItem>
-                        ))}
+                        )}
+                        {users
+                          .filter(u => u.id !== session?.user?.id)
+                          .map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} ({user.email})
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -343,10 +427,10 @@ export default function LoansPage() {
                 <TableRow>
                   <TableHead>Borrower</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead>Interest</TableHead>
-                  <TableHead>Duration</TableHead>
+                  <TableHead className="hidden lg:table-cell">Interest</TableHead>
+                  <TableHead className="hidden lg:table-cell">Duration</TableHead>
                   <TableHead>Balance</TableHead>
-                  <TableHead>Due Date</TableHead>
+                  <TableHead className="hidden md:table-cell">Due Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -361,25 +445,37 @@ export default function LoansPage() {
                   return (
                     <TableRow key={loan.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{loan.borrower.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{loan.borrower.email}</p>
+                        <div className="flex flex-col">
+                          <p className="font-medium text-gray-900 dark:text-white text-sm">{loan.borrower.name}</p>
+                          <p className="text-[10px] text-gray-500 md:hidden truncate max-w-[80px]">{loan.borrower.email}</p>
+                          <p className="text-[10px] text-gray-500 hidden md:block">{loan.borrower.email}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-sm">
                         {formatCurrency(loan.amount)}
                       </TableCell>
-                      <TableCell>{loan.interestRate}%</TableCell>
-                      <TableCell>{loan.durationMonths} months</TableCell>
+                      <TableCell className="hidden lg:table-cell">{loan.interestRate}%</TableCell>
+                      <TableCell className="hidden lg:table-cell">{loan.durationMonths}mo</TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{formatCurrency(loan.balance)}</p>
-                          <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
-                            <div
-                              className="h-full bg-blue-600 rounded-full"
-                              style={{ width: `${progress}%` }}
-                            />
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-medium text-sm ${loan.balance < 0 ? 'text-red-600' : ''}`}>
+                              {formatCurrency(loan.balance)}
+                            </span>
+                            {loan.balance < 0 && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 text-red-600 border-red-200 bg-red-50">
+                                Overpaid
+                              </Badge>
+                            )}
                           </div>
+                          {loan.status !== "PAID" && loan.balance > 0 && (
+                            <div className="w-24 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-600 transition-all duration-300"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-gray-600 dark:text-gray-400">
@@ -411,16 +507,82 @@ export default function LoansPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {loan.status === "ACTIVE" && (!isMember || loan.borrowerId === session?.user?.id) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setRepaymentDialog({ open: true, loanId: loan.id })}
-                          >
-                            <DollarSign className="mr-1 h-3 w-3" />
-                            Repay
-                          </Button>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          {!isMember && loan.status === "PENDING" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 border-green-200 hover:bg-green-50"
+                                onClick={() => handleStatusChange(loan.id, "APPROVED")}
+                              >
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => handleStatusChange(loan.id, "REJECTED")}
+                              >
+                                <XCircle className="mr-1 h-3 w-3" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          
+                          {(["ACTIVE", "APPROVED", "DEFAULTED"].includes(loan.status)) && (!isMember || loan.borrowerId === session?.user?.id) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setRepaymentDialog({ open: true, loanId: loan.id })}
+                            >
+                              <DollarSign className="mr-1 h-3 w-3" />
+                              Repay
+                            </Button>
+                          )}
+
+                          {!isMember && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => setEditDialog({ 
+                                  open: true, 
+                                  loanId: loan.id, 
+                                  amount: String(loan.amount),
+                                  interest: String(loan.interestRate),
+                                  duration: String(loan.durationMonths)
+                                })}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setAdjustmentDialog({ 
+                                  open: true, 
+                                  loanId: loan.id, 
+                                  balance: String(loan.balance),
+                                  note: ""
+                                })}>
+                                  <Scale className="mr-2 h-4 w-4" />
+                                  Adjust Balance
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-red-600"
+                                  onClick={() => setDeleteDialog({ open: true, loanId: loan.id })}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Loan
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -465,6 +627,116 @@ export default function LoansPage() {
               Record Payment
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ ...editDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Loan Details</DialogTitle>
+            <DialogDescription>
+              Update the primary loan parameters. Note: This does not automatically recalculate balance if interest changed.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditLoan} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="editAmount">Loan Amount (KES)</Label>
+              <Input
+                id="editAmount"
+                type="number"
+                step="0.01"
+                value={editDialog.amount}
+                onChange={(e) => setEditDialog({ ...editDialog, amount: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editInterest">Interest Rate (%)</Label>
+              <Input
+                id="editInterest"
+                type="number"
+                step="0.1"
+                value={editDialog.interest}
+                onChange={(e) => setEditDialog({ ...editDialog, interest: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editDuration">Duration (Months)</Label>
+              <Input
+                id="editDuration"
+                type="number"
+                value={editDialog.duration}
+                onChange={(e) => setEditDialog({ ...editDialog, duration: e.target.value })}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Update Loan
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjustment Dialog */}
+      <Dialog open={adjustmentDialog.open} onOpenChange={(open) => setAdjustmentDialog({ ...adjustmentDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manual Balance Adjustment</DialogTitle>
+            <DialogDescription>
+              Directly set the remaining balance. Use this to fix typos in repayments or manual credits.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAdjustBalance} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="adjBalance">New Balance (KES)</Label>
+              <Input
+                id="adjBalance"
+                type="number"
+                step="0.01"
+                value={adjustmentDialog.balance}
+                onChange={(e) => setAdjustmentDialog({ ...adjustmentDialog, balance: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adjNote">Reason for Adjustment</Label>
+              <Input
+                id="adjNote"
+                value={adjustmentDialog.note}
+                onChange={(e) => setAdjustmentDialog({ ...adjustmentDialog, note: e.target.value })}
+                placeholder="e.g., Correcting 50k repayment typo"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700">
+              Apply Adjustment
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+              <DialogTitle>Delete Loan Records</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2">
+              Are you sure you want to delete this loan? This action is permanent and will remove all associated guarantor records.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, loanId: "" })}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteLoan}>
+              Delete Permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

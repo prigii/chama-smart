@@ -9,16 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { updateUser } from "@/lib/actions";
-import { Upload, User, Smartphone, CreditCard, Landmark } from "lucide-react";
+import { updateUser, getChamaDetails, updateChama } from "@/lib/actions";
+import { Upload, User as UserIcon, Smartphone, CreditCard, Landmark } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/integration-card";
+import { UploadButton } from "@/lib/uploadthing";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
   const [loading, setLoading] = useState(false);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
-  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
 
   // User Profile State
   const [profile, setProfile] = useState({
@@ -28,12 +28,19 @@ export default function SettingsPage() {
     password: "",
   });
 
-  // Chama Settings State (Stub)
+  // Chama Settings State
   const [chamaSettings, setChamaSettings] = useState({
+    id: "",
+    name: "",
+    email: "",
+    phone: "",
+    logo: "",
     paybill: "123456",
     accountNumber: "CHAMA_ACC_001",
     tillNumber: "",
   });
+
+  const [chamaLogoPreview, setChamaLogoPreview] = useState<string | null>(null);
 
   // Initialize profile state from session
   useEffect(() => {
@@ -48,17 +55,26 @@ export default function SettingsPage() {
     }
   }, [session]);
 
-  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePictureFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePicture(reader.result as string);
+  // Load Chama Detail for Admin
+  useEffect(() => {
+    if (isAdmin) {
+      const loadChama = async () => {
+        const result = await getChamaDetails();
+        if (result.success && result.chama) {
+          setChamaSettings(prev => ({
+            ...prev,
+            id: result.chama!.id,
+            name: result.chama!.name,
+            email: result.chama!.email,
+            phone: result.chama!.phone || "",
+            logo: result.chama!.logo || "",
+          }));
+          setChamaLogoPreview(result.chama!.logo || null);
+        }
       };
-      reader.readAsDataURL(file);
+      loadChama();
     }
-  };
+  }, [isAdmin]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,35 +86,54 @@ export default function SettingsPage() {
       return;
     }
 
-    // TODO: Upload profile picture to storage service (e.g., UploadThing)
-    // For now, we'll just update the text fields
-    if (profilePictureFile) {
-      toast.info("Profile picture upload will be implemented with UploadThing");
-    }
-
-    // Call update action
     const result = await updateUser(session.user.id, {
       name: profile.name,
       email: profile.email,
       phone: profile.phone,
       password: profile.password || undefined,
-      role: session.user.role as any, // Preserve role
+      role: session.user.role as any,
+      avatarUrl: profilePicture || undefined,
     });
 
     if (result.success) {
       toast.success("Profile updated successfully");
-      setProfile({ ...profile, password: "" }); // Clear password field
-      await update(); // Update session
+      setProfile({ ...profile, password: "" });
+      await update({
+        user: {
+          ...session?.user,
+          avatarUrl: profilePicture,
+        }
+      });
     } else {
       toast.error(String(result.error));
     }
     setLoading(false);
   };
 
-  const handleChamaUpdate = (e: React.FormEvent) => {
+  const handleChamaUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Stub - In production, this would save to database
-    toast.success("Chama settings saved (Demo mode)");
+    if (!chamaSettings.id) return;
+    
+    setLoading(true);
+    const result = await updateChama(chamaSettings.id, {
+      name: chamaSettings.name,
+      phone: chamaSettings.phone,
+      logo: chamaLogoPreview || undefined,
+    });
+
+    if (result.success) {
+      toast.success("Chama branding updated successfully");
+      await update({
+        user: {
+          ...session?.user,
+          chamaName: chamaSettings.name,
+          chamaLogo: chamaLogoPreview,
+        }
+      });
+    } else {
+      toast.error(String(result.error));
+    }
+    setLoading(false);
   };
 
   return (
@@ -130,26 +165,28 @@ export default function SettingsPage() {
                       {profilePicture ? (
                         <img src={profilePicture} alt="Profile" className="h-full w-full object-cover" />
                       ) : (
-                        <User className="h-10 w-10" />
+                        <UserIcon className="h-10 w-10" />
                       )}
                     </div>
-                    <div className="flex-1">
-                      <input
-                        type="file"
-                        id="profile-picture"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleProfilePictureChange}
+                    <div className="flex flex-col items-start gap-1.5">
+                      <UploadButton
+                        endpoint="profilePicture"
+                        onClientUploadComplete={(res) => {
+                          setProfilePicture(res[0].url);
+                          toast.success("Profile picture uploaded!");
+                        }}
+                        onUploadError={(error: Error) => {
+                          toast.error(`Upload failed: ${error.message}`);
+                        }}
+                        content={{
+                          allowedContent: null
+                        }}
+                        appearance={{
+                          button: "bg-blue-600 hover:bg-blue-700 text-sm h-9 px-4 transition-all duration-200 active:scale-95",
+                          container: "w-max",
+                        }}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => document.getElementById('profile-picture')?.click()}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Photo
-                      </Button>
-                      <p className="text-xs text-gray-500 mt-1">JPG, PNG or GIF (max. 2MB)</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">Max 4MB (JPG, PNG)</p>
                     </div>
                   </div>
                 </div>
@@ -210,10 +247,66 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Chama Configuration</CardTitle>
-                <CardDescription>General settings for your group</CardDescription>
+                <CardDescription>General settings and branding for your group</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleChamaUpdate} className="space-y-4 max-w-lg">
+                  <div className="space-y-2">
+                    <Label>Group Logo</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="h-20 w-20 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xl overflow-hidden shadow-md">
+                        {chamaLogoPreview ? (
+                          <img src={chamaLogoPreview} alt="Group Logo" className="h-full w-full object-cover" />
+                        ) : (
+                          chamaSettings.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "CS"
+                        )}
+                      </div>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <UploadButton
+                          endpoint="chamaLogo"
+                          onClientUploadComplete={(res) => {
+                            setChamaLogoPreview(res[0].url);
+                            toast.success("Chama logo uploaded!");
+                          }}
+                          onUploadError={(error: Error) => {
+                            toast.error(`Upload failed: ${error.message}`);
+                          }}
+                          content={{
+                            allowedContent: null
+                          }}
+                          appearance={{
+                            button: "bg-blue-600 hover:bg-blue-700 text-sm h-9 px-4 transition-all duration-200 active:scale-95",
+                            container: "w-max",
+                          }}
+                        />
+                        <p className="text-[11px] font-medium text-muted-foreground">Logo appears in sidebar (max 4MB)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="chama-name">Chama Name</Label>
+                    <Input 
+                      id="chama-name" 
+                      value={chamaSettings.name}
+                      onChange={(e) => setChamaSettings({...chamaSettings, name: e.target.value})}
+                      placeholder="Group Name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="chama-phone">Group Phone / WhatsApp</Label>
+                    <Input 
+                      id="chama-phone" 
+                      value={chamaSettings.phone}
+                      onChange={(e) => setChamaSettings({...chamaSettings, phone: e.target.value})}
+                      placeholder="+254..."
+                    />
+                  </div>
+
+                  <Separator className="my-4" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Payment Information</h3>
+
                   <div className="space-y-2">
                     <Label htmlFor="paybill">M-Pesa Paybill Number</Label>
                     <Input 
@@ -232,7 +325,7 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="relative">
+                  <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t" />
                     </div>
@@ -251,7 +344,9 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <Button type="submit">Save Configurations</Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Saving..." : "Save Chama Settings"}
+                  </Button>
                 </form>
               </CardContent>
             </Card>
@@ -282,7 +377,6 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
         )}
-
       </Tabs>
     </div>
   );

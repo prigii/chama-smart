@@ -194,7 +194,7 @@ export async function updateUserRole(userId: string, role: UserRole) {
   }
 }
 
-export async function updateUser(userId: string, data: { name: string; email: string; phone?: string; role: UserRole; password?: string }) {
+export async function updateUser(userId: string, data: { name: string; email: string; phone?: string; role: UserRole; password?: string; avatarUrl?: string }) {
   try {
     const session = await auth();
     // Validate admin permissions here if strict
@@ -205,6 +205,7 @@ export async function updateUser(userId: string, data: { name: string; email: st
       email: data.email,
       phone: data.phone,
       role: data.role,
+      avatarUrl: data.avatarUrl,
     };
 
     // Only hash and update password if provided
@@ -351,17 +352,19 @@ export async function getTransactionStats() {
 
     const chamaId = caller.chamaId;
 
-    const [totalDeposits, totalWithdrawals, totalExpenses, recentTransactions] = await Promise.all([
+    const [inflows, outflows, recentTransactions] = await Promise.all([
       prisma.transaction.aggregate({
-        where: { type: "DEPOSIT", user: { chamaId } },
+        where: { 
+          type: { in: ["DEPOSIT", "LOAN_REPAYMENT", "FINE"] }, 
+          user: { chamaId } 
+        },
         _sum: { amount: true },
       }),
       prisma.transaction.aggregate({
-        where: { type: "WITHDRAWAL", user: { chamaId } },
-        _sum: { amount: true },
-      }),
-      prisma.transaction.aggregate({
-        where: { type: "EXPENSE", user: { chamaId } },
+        where: { 
+          type: { in: ["WITHDRAWAL", "LOAN_DISBURSEMENT", "EXPENSE"] }, 
+          user: { chamaId } 
+        },
         _sum: { amount: true },
       }),
       prisma.transaction.count({
@@ -375,16 +378,15 @@ export async function getTransactionStats() {
     ]);
 
     const cashAtHand = 
-      (totalDeposits._sum.amount?.toNumber() || 0) - 
-      (totalWithdrawals._sum.amount?.toNumber() || 0) - 
-      (totalExpenses._sum.amount?.toNumber() || 0);
+      (inflows._sum.amount?.toNumber() || 0) - 
+      (outflows._sum.amount?.toNumber() || 0);
 
     return {
       success: true,
       stats: {
-        totalDeposits: totalDeposits._sum.amount?.toNumber() || 0,
-        totalWithdrawals: totalWithdrawals._sum.amount?.toNumber() || 0,
-        totalExpenses: totalExpenses._sum.amount?.toNumber() || 0,
+        totalDeposits: inflows._sum.amount?.toNumber() || 0,
+        totalWithdrawals: outflows._sum.amount?.toNumber() || 0,
+        totalExpenses: 0, // We could separate this if needed, but for cashAtHand it's grouped in outflows
         cashAtHand,
         recentTransactions,
       },
@@ -667,7 +669,10 @@ export async function getLoanStats() {
 
     const [activeLoans, totalDisbursed, totalRepaid, overdueLoans] = await Promise.all([
       prisma.loan.count({
-        where: { status: "ACTIVE", borrower: { chamaId } },
+        where: { 
+          status: { in: ["PENDING", "APPROVED", "ACTIVE", "DEFAULTED"] }, 
+          borrower: { chamaId } 
+        },
       }),
       prisma.loan.aggregate({
         where: { status: { in: ["ACTIVE", "PAID"] }, borrower: { chamaId } },
@@ -679,8 +684,9 @@ export async function getLoanStats() {
       }),
       prisma.loan.count({
         where: {
-          status: "ACTIVE",
+          status: { in: ["ACTIVE", "DEFAULTED"] },
           borrower: { chamaId },
+          balance: { gt: 0 },
           dueDate: {
             lt: new Date(),
           },
@@ -1042,5 +1048,137 @@ export async function getGuarantees() {
   } catch (error) {
     console.error("Error fetching guarantees:", error);
     return { success: false, error: "Failed to fetch guarantees" };
+  }
+}
+export async function updateLoan(loanId: string, data: {
+  amount?: number;
+  interestRate?: number;
+  durationMonths?: number;
+  balance?: number;
+  status?: LoanStatus;
+}) {
+  try {
+    const updateData: any = { ...data };
+    
+    // If interest rate or amount changed, suggest manual balance adjustment or recalculate?
+    // Let's keep it simple: just update what's passed.
+    
+    await prisma.loan.update({
+      where: { id: loanId },
+      data: updateData
+    });
+
+    revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/overview");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating loan:", error);
+    return { success: false, error: "Failed to update loan" };
+  }
+}
+
+export async function deleteLoan(loanId: string) {
+  try {
+    await prisma.$transaction([
+      prisma.loanGuarantor.deleteMany({ where: { loanId } }),
+      prisma.loan.delete({ where: { id: loanId } })
+    ]);
+
+    revalidatePath("/dashboard/loans");
+    revalidatePath("/dashboard/overview");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting loan:", error);
+    return { success: false, error: "Failed to delete loan. Ensure it has no dependencies." };
+  }
+}
+
+export async function adjustLoanBalance(loanId: string, newBalance: number, note: string) {
+  try {
+    const loan = await prisma.loan.findUnique({
+      where: { id: loanId },
+    });
+
+    if (!loan) return { success: false, error: "Loan not found" };
+
+    await prisma.$transaction([
+      prisma.loan.update({
+        where: { id: loanId },
+        data: { 
+          balance: newBalance,
+          status: newBalance <= 0 ? "PAID" : (loan.status === "PAID" ? "ACTIVE" : loan.status)
+        }
+      }),
+      prisma.transaction.create({
+        data: {
+          userId: loan.borrowerId,
+          amount: Math.abs(newBalance - loan.balance.toNumber()),
+          type: "FINE", // Or add an 'ADJUSTMENT' type? FINE works for balance increases. 
+          description: `Balance Adjustment: ${note} (Changed from ${loan.balance.toNumber()} to ${newBalance})`,
+        }
+      })
+    ]);
+
+    revalidatePath("/dashboard/loans");
+    return { success: true };
+  } catch (error) {
+    console.error("Error adjusting balance:", error);
+    return { success: false, error: "Failed to adjust balance" };
+  }
+}
+export async function getChamaDetails() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { chamaId: true },
+    });
+
+    if (!user?.chamaId) return { success: false, error: "No Chama context" };
+
+    const chama = await prisma.chama.findUnique({
+      where: { id: user.chamaId },
+    });
+
+    return { success: true, chama };
+  } catch (error) {
+    console.error("Error fetching chama details:", error);
+    return { success: false, error: "Failed to fetch chama details" };
+  }
+}
+
+export async function updateChama(chamaId: string, data: { name?: string; phone?: string; logo?: string }) {
+  try {
+    // Basic verification: user must belong to this chama
+    const session = await auth();
+    const user = await prisma.user.findUnique({
+      where: { id: session?.user?.id },
+      select: { chamaId: true, role: true }
+    });
+
+    if (user?.chamaId !== chamaId || user?.role !== "ADMIN") {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const updateData: any = { ...data };
+    if (data.name) {
+      updateData.name = toTitleCase(data.name);
+    }
+
+    await prisma.chama.update({
+      where: { id: chamaId },
+      data: updateData,
+    });
+
+    revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/overview");
+    // Layout is client-side usually or revalidates on next load, 
+    // but revalidatePath("/") or specific dashboard layouts helps.
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating chama:", error);
+    return { success: false, error: "Failed to update chama" };
   }
 }

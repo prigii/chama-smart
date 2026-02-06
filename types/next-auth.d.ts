@@ -7,6 +7,8 @@ declare module "next-auth" {
       role: string;
       chamaId: string | null;
       chamaName?: string;
+      chamaLogo?: string;
+      avatarUrl?: string;
     } & DefaultSession["user"];
   }
 
@@ -15,6 +17,8 @@ declare module "next-auth" {
     role: string;
     chamaId: string | null;
     chamaName?: string;
+    chamaLogo?: string;
+    avatarUrl?: string;
   }
 }
 
@@ -24,5 +28,7 @@ declare module "next-auth/jwt" {
     role: string;
     chamaId: string | null;
     chamaName?: string;
+    chamaLogo?: string;
+    avatarUrl?: string;
   }
 }

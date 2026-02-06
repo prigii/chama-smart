@@ -270,41 +270,41 @@ export default function WalletPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden md:table-cell">Date</TableHead>
                   <TableHead>Member</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Reference</TableHead>
+                  <TableHead className="hidden lg:table-cell">Description</TableHead>
+                  <TableHead className="hidden md:table-cell">Reference</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((transaction) => (
                   <TableRow key={transaction.id}>
-                    <TableCell className="text-sm text-gray-600">
+                    <TableCell className="hidden md:table-cell text-xs text-gray-600">
                       {formatDateTime(transaction.date)}
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{transaction.user.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{transaction.user.email}</p>
+                      <div className="flex flex-col">
+                        <p className="font-medium text-gray-900 dark:text-white text-sm">{transaction.user.name}</p>
+                        <p className="text-[10px] text-gray-500 md:hidden">{formatDateTime(transaction.date)}</p>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         {getTransactionIcon(transaction.type)}
-                        <span className="text-sm">
+                        <span className="text-[10px] md:text-sm">
                           {transaction.type.replace(/_/g, " ")}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                    <TableCell className="hidden lg:table-cell text-sm text-gray-600 dark:text-gray-400">
                       {transaction.description || "-"}
                     </TableCell>
-                    <TableCell className="text-sm font-mono text-gray-600 dark:text-gray-400">
+                    <TableCell className="hidden md:table-cell text-xs font-mono text-gray-600 dark:text-gray-400">
                       {transaction.referenceCode || "-"}
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${getTransactionColor(transaction.type)}`}>
+                    <TableCell className={`text-right font-medium text-sm ${getTransactionColor(transaction.type)}`}>
                       {transaction.type === "DEPOSIT" ? "+" : "-"}
                       {formatCurrency(transaction.amount)}
                     </TableCell>

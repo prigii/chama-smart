@@ -44,19 +44,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           chamaId: user.chamaId,
-          chamaName: user.chama?.name,
+          chamaName: user.chama?.name ?? undefined,
+          chamaLogo: (user.chama as any)?.logo ?? undefined,
+          avatarUrl: user.avatarUrl ?? undefined,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user && user.id && user.role) {
-        token.id = user.id;
-        token.role = user.role;
+    async jwt({ token, user, trigger, session }) {
+      if (user && (user as any).id) {
+        token.id = (user as any).id;
+        token.role = (user as any).role;
         token.chamaId = (user as any).chamaId;
         token.chamaName = (user as any).chamaName;
+        token.chamaLogo = (user as any).chamaLogo;
+        token.avatarUrl = (user as any).avatarUrl;
       }
+
+      // Handle session update
+      if (trigger === "update" && session?.user) {
+        token.chamaName = session.user.chamaName || token.chamaName;
+        token.chamaLogo = session.user.chamaLogo || token.chamaLogo;
+        token.avatarUrl = session.user.avatarUrl || token.avatarUrl;
+        token.name = session.user.name || token.name;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -65,6 +78,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as string;
         session.user.chamaId = token.chamaId as string | null;
         session.user.chamaName = token.chamaName as string | undefined;
+        session.user.chamaLogo = token.chamaLogo as string | undefined;
+        session.user.avatarUrl = token.avatarUrl as string | undefined;
       }
       return session;
     },
