@@ -27,7 +27,7 @@ export function IntegrationCard({ title, description, type, icon }: IntegrationC
           <CardTitle className="text-lg">{title}</CardTitle>
           <div className="flex items-center gap-2 mt-1">
             {isConnected ? (
-              <Badge variant="success" className="bg-green-100 text-green-700 hover:bg-green-100 border-none">Connected</Badge>
+              <Badge variant="success">Connected</Badge>
             ) : (
               <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 border-none">Not Connected</Badge>
             )}
