@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createChama, createFirstAdmin } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -45,7 +46,8 @@ export default function LandingPage() {
 
   // Register State
   const [regData, setRegData] = useState({
-    name: "",
+    name: "",      // Chama Name
+    adminName: "", // Administrator's personal name
     email: "",
     phone: "",
     password: "",
@@ -110,7 +112,7 @@ export default function LandingPage() {
       const adminResult = await createFirstAdmin({
         chamaId: chamaResult.chama!.id,
         email: regData.email,
-        name: regData.name,
+        name: regData.adminName,
         phone: regData.phone,
         hashedPassword: chamaResult.tempPassword!,
       });
@@ -120,7 +122,9 @@ export default function LandingPage() {
         setLoginEmail(regData.email);
         setLoginPassword(regData.password);
         setActiveTab("login");
-        alert(`Chama "${chamaResult.chama!.name}" registered successfully! Please log in as the admin.`);
+        toast.success(`Chama "${chamaResult.chama!.name}" registered successfully! Please log in as the admin.`, {
+          duration: 6000,
+        });
       } else {
         setRegError(String(adminResult.error) || "Failed to create admin account");
       }
@@ -414,6 +418,16 @@ export default function LandingPage() {
                   </form>
                 ) : (
                   <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="r-admin-name">Administrator Name</Label>
+                      <Input 
+                        id="r-admin-name" 
+                        placeholder="e.g. John Doe"
+                        value={regData.adminName}
+                        onChange={(e) => setRegData({...regData, adminName: e.target.value})}
+                        required 
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="r-name">Chama Name</Label>
                       <Input 

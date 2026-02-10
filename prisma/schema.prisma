@@ -42,7 +42,7 @@ enum IntegrationType {
 
 model User {
   id            String    @id @default(cuid())
-  email         String    @unique
+  email         String
   password      String
   name          String?
   phone         String?   // Important for M-Pesa integration
@@ -59,12 +59,14 @@ model User {
   // Chama Relation
   chamaId       String?
   chama         Chama?    @relation(fields: [chamaId], references: [id])
+
+  @@unique([email, chamaId])
 }
 
 model Chama {
   id            String        @id @default(cuid())
   name          String
-  email         String        @unique
+  email         String
   phone         String?
   logo          String?       // Base64 or URL for the group logo
   users         User[]

@@ -13,6 +13,7 @@ import { updateUser, getChamaDetails, updateChama } from "@/lib/actions";
 import { Upload, User as UserIcon, Smartphone, CreditCard, Landmark } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/integration-card";
 import { UploadButton } from "@/lib/uploadthing";
+import { toTitleCase, formatKenyanPhone, getPhoneValidationError, getNameValidationError } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -76,6 +77,25 @@ export default function SettingsPage() {
     }
   }, [isAdmin]);
 
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  const handleNameBlur = () => {
+    const error = getNameValidationError(profile.name);
+    setNameError(error);
+    if (!error && profile.name) {
+      setProfile(prev => ({ ...prev, name: toTitleCase(prev.name) }));
+    }
+  };
+
+  const handlePhoneBlur = () => {
+    const error = getPhoneValidationError(profile.phone);
+    setPhoneError(error);
+    if (!error && profile.phone) {
+      setProfile(prev => ({ ...prev, phone: formatKenyanPhone(prev.phone) }));
+    }
+  };
+
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -86,10 +106,26 @@ export default function SettingsPage() {
       return;
     }
 
+    const nameErr = getNameValidationError(profile.name);
+    const phoneErr = getPhoneValidationError(profile.phone);
+    if (nameErr) {
+      setNameError(nameErr);
+      setLoading(false);
+      return;
+    }
+    if (phoneErr) {
+      setPhoneError(phoneErr);
+      setLoading(false);
+      return;
+    }
+
+    const formattedName = toTitleCase(profile.name);
+    const formattedPhone = profile.phone ? formatKenyanPhone(profile.phone) : "";
+
     const result = await updateUser(session.user.id, {
-      name: profile.name,
+      name: formattedName,
       email: profile.email,
-      phone: profile.phone,
+      phone: formattedPhone,
       password: profile.password || undefined,
       role: session.user.role as any,
       avatarUrl: profilePicture || undefined,
@@ -97,10 +133,20 @@ export default function SettingsPage() {
 
     if (result.success) {
       toast.success("Profile updated successfully");
-      setProfile({ ...profile, password: "" });
+      setProfile({ 
+        ...profile, 
+        name: formattedName,
+        phone: formattedPhone,
+        password: "" 
+      });
+      
+      // Update the active session so the UI (sidebar/header) updates immediately
       await update({
         user: {
           ...session?.user,
+          name: formattedName,
+          email: profile.email,
+          phone: formattedPhone,
           avatarUrl: profilePicture,
         }
       });
@@ -196,8 +242,16 @@ export default function SettingsPage() {
                   <Input 
                     id="name" 
                     value={profile.name}
-                    onChange={(e) => setProfile({...profile, name: e.target.value})}
+                    onChange={(e) => {
+                      setProfile({...profile, name: e.target.value});
+                      if (nameError) setNameError(null);
+                    }}
+                    onBlur={handleNameBlur}
+                    className={nameError ? "border-red-500" : ""}
                   />
+                  {nameError && (
+                    <p className="text-[11px] text-red-600">{nameError}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -216,9 +270,17 @@ export default function SettingsPage() {
                     id="phone" 
                     type="tel"
                     value={profile.phone}
-                    onChange={(e) => setProfile({...profile, phone: e.target.value})}
+                    onChange={(e) => {
+                      setProfile({...profile, phone: e.target.value});
+                      if (phoneError) phoneError && setPhoneError(null);
+                    }}
+                    onBlur={handlePhoneBlur}
                     placeholder="+254..."
+                    className={phoneError ? "border-red-500" : ""}
                   />
+                  {phoneError && (
+                    <p className="text-[11px] text-red-600">{phoneError}</p>
+                  )}
                 </div>
 
                 <Separator className="my-4" />

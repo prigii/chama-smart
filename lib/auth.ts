@@ -16,22 +16,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({
+        const authenticatedUser = await prisma.user.findFirst({
           where: {
             email: credentials.email as string,
           },
           include: {
-            chama: true, // Include chama information
+            chama: true,
           },
         });
 
-        if (!user || !user.password) {
+        if (!authenticatedUser || !authenticatedUser.password) {
           return null;
         }
 
         const isCorrectPassword = await bcrypt.compare(
           credentials.password as string,
-          user.password
+          authenticatedUser.password
         );
 
         if (!isCorrectPassword) {
@@ -39,35 +39,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          chamaId: user.chamaId,
-          chamaName: user.chama?.name ?? undefined,
-          chamaLogo: (user.chama as any)?.logo ?? undefined,
-          avatarUrl: user.avatarUrl ?? undefined,
+          id: authenticatedUser.id,
+          email: authenticatedUser.email,
+          name: authenticatedUser.name,
+          role: authenticatedUser.role,
+          chamaId: authenticatedUser.chamaId,
+          chamaName: authenticatedUser.chama?.name ?? undefined,
+          chamaLogo: (authenticatedUser.chama as any)?.logo ?? undefined,
+          avatarUrl: authenticatedUser.avatarUrl ?? undefined,
+          image: authenticatedUser.avatarUrl ?? undefined, // Sync with standard image field
+          phone: authenticatedUser.phone ?? undefined,
         };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      if (user && (user as any).id) {
+      if (user) {
         token.id = (user as any).id;
         token.role = (user as any).role;
         token.chamaId = (user as any).chamaId;
         token.chamaName = (user as any).chamaName;
         token.chamaLogo = (user as any).chamaLogo;
-        token.avatarUrl = (user as any).avatarUrl;
+        token.avatarUrl = (user as any).avatarUrl || (user as any).image;
+        token.phone = (user as any).phone;
+        token.name = user.name;
+        token.email = user.email;
       }
 
-      // Handle session update
       if (trigger === "update" && session?.user) {
+        token.id = session.user.id || token.id;
+        token.role = session.user.role || token.role;
+        token.chamaId = session.user.chamaId || token.chamaId;
         token.chamaName = session.user.chamaName || token.chamaName;
         token.chamaLogo = session.user.chamaLogo || token.chamaLogo;
-        token.avatarUrl = session.user.avatarUrl || token.avatarUrl;
+        token.avatarUrl = session.user.avatarUrl || session.user.image || token.avatarUrl;
         token.name = session.user.name || token.name;
+        token.email = session.user.email || token.email;
+        token.phone = session.user.phone || token.phone;
       }
 
       return token;
@@ -79,7 +88,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.chamaId = token.chamaId as string | null;
         session.user.chamaName = token.chamaName as string | undefined;
         session.user.chamaLogo = token.chamaLogo as string | undefined;
-        session.user.avatarUrl = token.avatarUrl as string | undefined;
+        (session.user as any).avatarUrl = token.avatarUrl as string | undefined;
+        session.user.image = token.avatarUrl as string | undefined; // Map back to standard image
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
+        (session.user as any).phone = token.phone as string | undefined;
       }
       return session;
     },

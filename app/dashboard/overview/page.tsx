@@ -74,7 +74,6 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
-      <DashboardRefresh intervalMs={30000} />
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>

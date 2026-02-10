@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ChamaSwitcher } from "@/components/dashboard/chama-switcher";
 
 const adminNavigation = [
   { name: "Overview", href: "/dashboard/overview", icon: LayoutDashboard },
@@ -42,6 +43,7 @@ const adminNavigation = [
 
 const memberNavigation = [
   { name: "Dashboard", href: "/dashboard/overview", icon: LayoutDashboard },
+  { name: "Members", href: "/dashboard/members", icon: Users },
   { name: "My Wallet", href: "/dashboard/wallet", icon: Wallet },
   { name: "Request Loan", href: "/dashboard/loans", icon: HandCoins },
   { name: "My Guarantees", href: "/dashboard/guarantees", icon: CheckCircle },
@@ -95,20 +97,7 @@ export default function DashboardLayout({
             ChamaSmart
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-blue-600/20 shrink-0 overflow-hidden">
-            {session?.user && (session.user as any).chamaLogo ? (
-              <img src={(session.user as any).chamaLogo} alt="Logo" className="h-full w-full object-cover" />
-            ) : (
-              chamaInitials
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold text-foreground leading-snug break-words" title={chamaName}>
-              {chamaName}
-            </h1>
-          </div>
-        </div>
+        <ChamaSwitcher />
       </div>
 
       {/* Navigation */}
@@ -140,7 +129,7 @@ export default function DashboardLayout({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full justify-start gap-3 px-3">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={session?.user?.avatarUrl || ""} alt={session?.user?.name || "User"} />
+                <AvatarImage src={session?.user?.avatarUrl || session?.user?.image || ""} alt={session?.user?.name || "User"} />
                 <AvatarFallback className="bg-blue-600 text-white text-sm">
                   {userInitials}
                 </AvatarFallback>

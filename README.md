@@ -26,12 +26,14 @@ A **Progressive Web App (PWA)** for managing Kenyan Investment Groups (Chamas), 
 
 ### 💼 Core Business Features
 1. **Dashboard** - Real-time overview of group finances and activities
-2. **Member Management** - Role-based access (Admin, Treasurer, Member)
-3. **Cloud Branding** - Custom Chama logos and Profile Pictures via **UploadThing**
-4. **Transactions** - Complete ledger with M-Pesa integration support
-5. **Table Banking** - Loan management with guarantor approval system
-6. **Investment Tracking** - Portfolio management with valuation tracking
-7. **Financial Reports** - Automated reporting and analytics
+2. **Member Management** - Unified member list with role-specific views (Admins manage, Members view)
+3. **Advanced Profile Settings** - Self-service profile updates with auto-formatting for names (Title Case) and Kenyan phone numbers (+254...)
+4. **Cloud Branding** - Custom Chama logos and Profile Pictures via **UploadThing**
+5. **Real-time Sync** - Instant session synchronization across sidebar, header, and components without page refreshes
+6. **Transactions** - Complete ledger with M-Pesa integration support
+7. **Table Banking** - Loan management with guarantor approval system
+8. **Investment Tracking** - Portfolio management with valuation tracking
+9. **Financial Reports** - Automated reporting and analytics
 
 ## 🛠️ Tech Stack
 

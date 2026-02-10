@@ -86,16 +86,28 @@ export default function InvestmentsPage() {
     }
   };
 
-  const handleDelete = async (assetId: string) => {
-    if (confirm("Are you sure you want to delete this asset?")) {
-      const result = await deleteAsset(assetId);
-      if (result.success) {
-        loadAssets();
-        toast.success("Asset deleted successfully");
-      } else {
-        toast.error("Failed to delete asset");
-      }
-    }
+  const handleDelete = (assetId: string) => {
+    toast.warning("Are you sure you want to delete this asset?", {
+      description: "This action cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: () => {
+          toast.promise(
+            (async () => {
+              const result = await deleteAsset(assetId);
+              if (!result.success) throw new Error("Failed to delete asset");
+              loadAssets();
+              return "Asset deleted successfully";
+            })(),
+            {
+              loading: "Deleting asset...",
+              success: (msg) => msg,
+              error: (err) => `Error: ${err.message}`,
+            }
+          );
+        },
+      },
+    });
   };
 
   const calculateGainLoss = (purchasePrice: number, currentValue: number) => {

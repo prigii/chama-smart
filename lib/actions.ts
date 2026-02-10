@@ -26,15 +26,18 @@ export async function createChama(data: {
   });
 
   try {
-    // Check if email already exists
-    console.log("🔍 [createChama] Checking for existing email...");
-    const existingChama = await prisma.chama.findUnique({ 
-      where: { email: data.email } 
+    // Check if a chama with this name already exists for this email
+    console.log("🔍 [createChama] Checking for existing chama with same name and email...");
+    const existingChama = await prisma.chama.findFirst({ 
+      where: { 
+        email: data.email,
+        name: toTitleCase(data.name)
+      } 
     });
 
     if (existingChama) {
-      console.error("❌ [createChama] Email already exists");
-      return { success: false, error: "Email already registered" };
+      console.error("❌ [createChama] Chama with this name and email already exists");
+      return { success: false, error: "A chama with this name is already registered to this email" };
     }
 
     console.log("🔐 [createChama] Hashing password for future admin...");
@@ -131,7 +134,7 @@ export async function createUser(data: {
   } catch (error: any) {
     console.error("Error creating user:", error);
     if (error.code === "P2002") {
-      return { success: false, error: "User with this email already exists" };
+      return { success: false, error: "A member with this email already exists in this Chama" };
     }
     return { success: false, error: "Failed to create user" };
   }
@@ -789,7 +792,7 @@ export async function createFirstAdmin(data: {
       data: {
         email: data.email,
         password: data.hashedPassword,
-        name: data.name,
+        name: toTitleCase(data.name),
         phone: data.phone,
         role: "ADMIN",
         chamaId: data.chamaId,
@@ -1180,5 +1183,64 @@ export async function updateChama(chamaId: string, data: { name?: string; phone?
   } catch (error) {
     console.error("Error updating chama:", error);
     return { success: false, error: "Failed to update chama" };
+  }
+}
+export async function getUserChamas() {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) return { success: false, error: "Not logged in" };
+
+    const users = await prisma.user.findMany({
+      where: { email: session.user.email },
+      include: { chama: true },
+    });
+
+    return {
+      success: true,
+      chamas: users.map(u => ({
+        id: u.chamaId,
+        name: u.chama?.name,
+        role: u.role,
+        userId: u.id,
+        logo: u.chama?.logo
+      })).filter(c => c.id !== null)
+    };
+  } catch (error) {
+    console.error("Error fetching user chamas:", error);
+    return { success: false, error: "Failed to fetch Chamas" };
+  }
+}
+
+export async function switchChama(targetUserId: string) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) return { success: false, error: "Not logged in" };
+
+    // Verify this target user belongs to the same person (same email)
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { chama: true }
+    });
+
+    if (!targetUser || targetUser.email !== session.user.email) {
+      return { success: false, error: "Unauthorized switch" };
+    }
+
+    // Return the new user data to be used for session update
+    return {
+      success: true,
+      userData: {
+        id: targetUser.id,
+        role: targetUser.role,
+        chamaId: targetUser.chamaId,
+        chamaName: targetUser.chama?.name,
+        chamaLogo: (targetUser.chama as any)?.logo,
+        name: targetUser.name,
+        avatarUrl: targetUser.avatarUrl
+      }
+    };
+  } catch (error) {
+    console.error("Error switching chama:", error);
+    return { success: false, error: "Failed to switch Chama" };
   }
 }

@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserPlus, Mail, Phone, Trash2, Edit } from "lucide-react";
 import { formatDate, toTitleCase, getNameValidationError, getPhoneValidationError, formatKenyanPhone } from "@/lib/utils";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -222,16 +222,28 @@ function MembersPageContent() {
     }
   };
 
-  const handleDelete = async (userId: string) => {
-    if (confirm("Are you sure you want to delete this member?")) {
-      const result = await deleteUser(userId);
-      if (result.success) {
-        loadUsers();
-        toast.success("Member deleted successfully");
-      } else {
-        toast.error("Failed to delete member");
-      }
-    }
+  const handleDelete = (userId: string) => {
+    toast.warning("Are you sure you want to delete this member?", {
+      description: "This action cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: () => {
+          toast.promise(
+            (async () => {
+              const result = await deleteUser(userId);
+              if (!result.success) throw new Error(String(result.error));
+              loadUsers();
+              return "Member deleted successfully";
+            })(),
+            {
+              loading: "Deleting member...",
+              success: (msg) => msg,
+              error: (err) => `Failed to delete: ${err.message}`,
+            }
+          );
+        },
+      },
+    });
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -250,7 +262,9 @@ function MembersPageContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Members</h1>
-          <p className="text-gray-600 mt-1">Manage your chama members</p>
+          <p className="text-gray-600 mt-1">
+            {isMember ? "View your chama members" : "Manage your chama members"}
+          </p>
         </div>
 
         {!isMember && (
@@ -386,6 +400,7 @@ function MembersPageContent() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
+                            <AvatarImage src={user.avatarUrl || ""} alt={user.name || "User"} />
                             <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
                               {initials}
                             </AvatarFallback>
