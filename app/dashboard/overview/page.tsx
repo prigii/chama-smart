@@ -311,17 +311,41 @@ export default async function DashboardOverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Loan Requests */}
-        <Card>
+        <Card className={pendingLoans.length > 0
+          ? "border-amber-300 dark:border-amber-600 bg-amber-50/60 dark:bg-amber-950/20 shadow-[0_0_15px_-3px_rgba(245,158,11,0.4)] dark:shadow-[0_0_15px_-3px_rgba(245,158,11,0.25)] ring-1 ring-amber-200/50 dark:ring-amber-700/30"
+          : ""
+        }>
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="space-y-1">
-              <CardTitle>Pending Loan Requests</CardTitle>
-              <p className="text-sm text-gray-500">
-                {isMember ? "Your submmitted requests" : "Member requests awaiting approval"}
+              <div className="flex items-center gap-2">
+                {pendingLoans.length > 0 && (
+                  <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-pulse" />
+                )}
+                <CardTitle className={pendingLoans.length > 0 ? "text-amber-900 dark:text-amber-200" : ""}>
+                  Pending Loan Requests
+                </CardTitle>
+              </div>
+              <p className={`text-sm ${pendingLoans.length > 0 ? "text-amber-700 dark:text-amber-400" : "text-gray-500"}`}>
+                {isMember ? "Your submitted requests" : "Member requests awaiting approval"}
               </p>
             </div>
-            <Badge variant="outline" className="h-6">
-              {pendingLoans.length}
-            </Badge>
+            <div className="relative">
+              <Badge 
+                variant="outline" 
+                className={`h-6 ${pendingLoans.length > 0 
+                  ? "border-amber-400 bg-amber-100 text-amber-800 dark:border-amber-600 dark:bg-amber-900/50 dark:text-amber-200 font-bold" 
+                  : ""
+                }`}
+              >
+                {pendingLoans.length}
+              </Badge>
+              {pendingLoans.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {pendingLoans.length === 0 ? (
@@ -330,16 +354,16 @@ export default async function DashboardOverviewPage() {
                 <p className="text-sm text-gray-500">No pending requests</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {pendingLoans.map((loan: any) => (
-                  <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <div key={loan.id} className="flex items-center justify-between p-3 rounded-lg bg-white/80 dark:bg-gray-800/60 border border-amber-200 dark:border-amber-800/40 shadow-sm">
                     <div>
-                      <p className="font-medium text-sm">{loan.borrower.name}</p>
-                      <p className="text-xs text-gray-500">{formatCurrency(loan.amount)} • {loan.durationMonths}mo</p>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">{loan.borrower.name}</p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">{formatCurrency(loan.amount)} • {loan.durationMonths}mo</p>
                     </div>
                     <Link href="/dashboard/loans">
-                      <Button size="sm" variant="ghost" className="h-8">
-                        View
+                      <Button size="sm" className="h-8 bg-amber-600 hover:bg-amber-700 text-white shadow-sm">
+                        Review
                       </Button>
                     </Link>
                   </div>
