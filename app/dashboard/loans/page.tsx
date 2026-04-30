@@ -140,12 +140,12 @@ export default function LoansPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => loadData(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     const [loansResult, usersResult] = await Promise.all([
       getLoans(),
       getUsers(),
@@ -156,7 +156,7 @@ export default function LoansPage() {
     if (usersResult.success) {
       setUsers(usersResult.users || []);
     }
-    setLoading(false);
+    if (!isBackground) setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

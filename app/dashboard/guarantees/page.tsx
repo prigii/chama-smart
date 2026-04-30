@@ -25,17 +25,17 @@ export default function GuaranteesPage() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => loadData(true), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     const result = await getGuarantees();
     if (result.success) {
       setGuarantees(result.guarantees || []);
     }
-    setLoading(false);
+    if (!isBackground) setLoading(false);
   };
 
   const handleApprove = async (id: string) => {

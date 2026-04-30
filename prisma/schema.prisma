@@ -89,13 +89,15 @@ model Integration {
 }
 
 model TransactionAlert {
-  id              String   @id @default(cuid())
-  externalId      String?  @unique // M-Pesa Receipt Number, Paystack Ref
-  provider        IntegrationType
-  amount          Decimal  @db.Decimal(10, 2)
-  payload         Json     // Raw webhook data
-  status          String   @default("PENDING") // PENDING, PROCESSED, FAILED
-  createdAt       DateTime @default(now())
+  id                  String   @id @default(cuid())
+  externalId          String?  @unique // M-Pesa Receipt Number, Paystack Ref
+  checkoutRequestId   String?  @unique // M-Pesa STK Push CheckoutRequestID for polling
+  userId              String?  // The user who initiated the STK push (for accurate matching)
+  provider            IntegrationType
+  amount              Decimal  @db.Decimal(10, 2)
+  payload             Json     // Raw webhook data
+  status              String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  createdAt           DateTime @default(now())
 }
 
 model Transaction {

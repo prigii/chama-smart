@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { updateUser, getChamaDetails, updateChama } from "@/lib/actions";
-import { Upload, User as UserIcon, Smartphone, CreditCard, Landmark } from "lucide-react";
+import { User as UserIcon, Smartphone, CreditCard, Landmark } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/integration-card";
 import { UploadButton } from "@/lib/uploadthing";
 import { toTitleCase, formatKenyanPhone, getPhoneValidationError, getNameValidationError } from "@/lib/utils";
@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const { data: session, update } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
   // User Profile State
@@ -36,9 +37,6 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     logo: "",
-    paybill: "123456",
-    accountNumber: "CHAMA_ACC_001",
-    tillNumber: "",
   });
 
   const [chamaLogoPreview, setChamaLogoPreview] = useState<string | null>(null);
@@ -189,7 +187,7 @@ export default function SettingsPage() {
         <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account and preferences</p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="chama">Chama Settings</TabsTrigger>}
@@ -367,43 +365,26 @@ export default function SettingsPage() {
                   </div>
 
                   <Separator className="my-4" />
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">Payment Information</h3>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="paybill">M-Pesa Paybill Number</Label>
-                    <Input 
-                      id="paybill" 
-                      value={chamaSettings.paybill}
-                      onChange={(e) => setChamaSettings({...chamaSettings, paybill: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="account">Account Name/Number</Label>
-                    <Input 
-                      id="account" 
-                      value={chamaSettings.accountNumber}
-                      onChange={(e) => setChamaSettings({...chamaSettings, accountNumber: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
+                  {/* Payment config now lives in Integrations > M-Pesa */}
+                  <div className="rounded-xl bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 p-4 flex gap-3 items-start">
+                    <Smartphone className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                        M-Pesa Payment Setup
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-0.5 leading-relaxed">
+                        Configure your Paybill/Till number and Daraja API credentials in the{" "}
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("integrations")}
+                          className="font-semibold underline underline-offset-2 hover:opacity-80"
+                        >
+                          Integrations tab
+                        </button>
+                        . This ensures your payment details are securely stored and linked to the M-Pesa STK Push flow.
+                      </p>
                     </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="till">M-Pesa Till Number</Label>
-                    <Input 
-                      id="till" 
-                      value={chamaSettings.tillNumber}
-                      onChange={(e) => setChamaSettings({...chamaSettings, tillNumber: e.target.value})}
-                      placeholder="Enter Buy Goods Till Number"
-                    />
                   </div>
 
                   <Button type="submit" disabled={loading}>

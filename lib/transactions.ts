@@ -1,12 +1,33 @@
 import { prisma } from "@/lib/prisma";
-import { TransactionType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 /**
- * Centrally processes an incoming payment alert.
- * Attempts to match the alert to a member based on phone number or reference code.
+ * Process a TransactionAlert by its checkoutRequestId.
+ * Uses the saved userId for exact user matching (no phone fuzzy-match needed).
+ * Falls back to phone-number matching for webhook-only flows.
  */
-export async function processTransactionAlert(alertId: string) {
+export async function processTransactionAlertByCheckout(checkoutRequestId: string) {
+  try {
+    const alert = await prisma.transactionAlert.findUnique({
+      where: { checkoutRequestId },
+    });
+
+    if (!alert || alert.status === "PROCESSED") return;
+
+    await processTransactionAlertById(alert.id);
+  } catch (error) {
+    console.error("[processTransactionAlertByCheckout] Error:", error);
+  }
+}
+
+/**
+ * Process a TransactionAlert by its DB id.
+ * Matches a chama member by:
+ *  1. userId field (set at STK push time — most accurate)
+ *  2. Phone number from M-Pesa callback metadata (fallback)
+ */
+export async function processTransactionAlertById(alertId: string) {
   try {
     const alert = await prisma.transactionAlert.findUnique({
       where: { id: alertId },
@@ -14,75 +35,66 @@ export async function processTransactionAlert(alertId: string) {
 
     if (!alert || alert.status !== "PENDING") return;
 
-    // Extract potential identifiers from payload
     const payload = alert.payload as any;
-    let phoneNumber = "";
-    let reference = alert.externalId; // Paybill reference or M-Pesa receipt
+    let matchedUserId: string | null = null;
+    const reference = alert.externalId; // M-Pesa receipt e.g. "QGH7XYZ123"
 
-    // M-Pesa specific extraction
-    if (alert.provider === "MPESA") {
-      const metadata = payload?.Body?.stkCallback?.CallbackMetadata?.Item;
-      phoneNumber = metadata?.find((i: any) => i.Name === "PhoneNumber")?.Value?.toString();
+    // ── Strategy 1: Use the userId saved at STK push time (most reliable) ──
+    if (alert.userId) {
+      // Verify user still exists
+      const user = await prisma.user.findUnique({ where: { id: alert.userId }, select: { id: true } });
+      if (user) matchedUserId = user.id;
     }
 
-    // Try to find a user by phone number
-    let matchedUser = null;
-    if (phoneNumber) {
-      // Clean phone number for matching
-      const cleanPhone = phoneNumber.replace("+", "").slice(-9); // Match last 9 digits to be safe
-      matchedUser = await prisma.user.findFirst({
-        where: {
-          phone: {
-            contains: cleanPhone,
-          },
+    // ── Strategy 2: Phone-number matching from M-Pesa callback ──
+    if (!matchedUserId && alert.provider === "MPESA") {
+      const metadata = payload?.Body?.stkCallback?.CallbackMetadata?.Item;
+      const rawPhone = metadata?.find((i: any) => i.Name === "PhoneNumber")?.Value?.toString();
+      if (rawPhone) {
+        const cleanPhone = rawPhone.replace("+", "").slice(-9);
+        const user = await prisma.user.findFirst({
+          where: { phone: { contains: cleanPhone } },
+          select: { id: true },
+        });
+        if (user) matchedUserId = user.id;
+      }
+    }
+
+    if (!matchedUserId) {
+      console.warn(`[processTransactionAlert] No user matched for alert ${alertId}`);
+      return;
+    }
+
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Create the transaction record
+      await tx.transaction.create({
+        data: {
+          userId: matchedUserId!,
+          amount: alert.amount,
+          type: "DEPOSIT",
+          description: `M-Pesa Payment${reference ? ` — Ref: ${reference}` : ""}`,
+          referenceCode: reference || alert.checkoutRequestId || undefined,
         },
       });
-    }
 
-    if (matchedUser) {
-      await prisma.$transaction(async (tx) => {
-        // 1. Create the actual transaction
-        await tx.transaction.create({
-          data: {
-            userId: matchedUser.id,
-            amount: alert.amount,
-            type: "DEPOSIT",
-            description: `Automated ${alert.provider} Deposit - Ref: ${reference}`,
-            referenceCode: reference || undefined,
-          },
-        });
-
-        // 2. Update alert status
-        await tx.transactionAlert.update({
-          where: { id: alertId },
-          data: { status: "PROCESSED" },
-        });
-        
-        // 3. Optional: Logic for auto-repayment if they have an active loan
-        const activeLoan = await tx.loan.findFirst({
-          where: {
-            borrowerId: matchedUser.id,
-            status: "ACTIVE",
-          },
-        });
-
-        if (activeLoan) {
-          // We could auto-apply this to the loan here, 
-          // but usually it's safer to just record it as a deposit 
-          // and let the member or treasurer apply it to the loan balance.
-          // For now, we'll just log it.
-          console.log(`Matched user ${matchedUser.name} has an active loan ${activeLoan.id}`);
-        }
+      // Mark alert as processed
+      await tx.transactionAlert.update({
+        where: { id: alertId },
+        data: { status: "PROCESSED" },
       });
+    });
 
-      // Clear caches for real-time update
-      revalidatePath("/dashboard/wallet");
-      revalidatePath("/dashboard/overview");
-      console.log(`Successfully auto-matched alert ${alertId} to user ${matchedUser.name}`);
-    } else {
-      console.log(`Could not auto-match alert ${alertId}. Phone: ${phoneNumber}, Ref: ${reference}`);
-    }
+    revalidatePath("/dashboard/wallet");
+    revalidatePath("/dashboard/overview");
+    console.log(`[processTransactionAlert] ✅ Alert ${alertId} processed for user ${matchedUserId}`);
   } catch (error) {
-    console.error("Error processing transaction alert:", error);
+    console.error("[processTransactionAlert] Error:", error);
   }
+}
+
+/**
+ * Legacy entry point — kept for backward compatibility with existing webhook.
+ */
+export async function processTransactionAlert(alertId: string) {
+  return processTransactionAlertById(alertId);
 }

@@ -1,11 +1,21 @@
+"use client";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MpesaConfigForm } from "./mpesa-config-form";
 import { PaystackConfigForm } from "./paystack-config-form";
 import { BankConfigForm } from "./bank-config-form";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
 interface IntegrationCardProps {
   title: string;
@@ -15,43 +25,89 @@ interface IntegrationCardProps {
 }
 
 export function IntegrationCard({ title, description, type, icon }: IntegrationCardProps) {
-  const [isConnected, setIsConnected] = useState(false); // This should be fetched from API
+  const [isConnected, setIsConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  const checkStatus = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/integrations");
+      if (res.ok) {
+        const data = await res.json();
+        // Map "BANK" type to KCB or EQUITY in DB
+        const match = data.find(
+          (i: any) =>
+            i.type === type ||
+            (type === "BANK" && (i.type === "KCB" || i.type === "EQUITY"))
+        );
+        setIsConnected(!!(match && match.isEnabled));
+      }
+    } catch {
+      // leave as not connected
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkStatus();
+  }, []);
+
+  const handleSaved = () => {
+    setOpen(false);
+    checkStatus(); // Refresh badge
+  };
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col border-border/60 hover:border-border transition-colors">
       <CardHeader className="flex flex-row items-center gap-4 space-y-0">
-        <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg">
-          {icon}
-        </div>
-        <div className="flex-1">
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <div className="flex items-center gap-2 mt-1">
-            {isConnected ? (
-              <Badge variant="success">Connected</Badge>
+        <div className="bg-muted p-2.5 rounded-xl">{icon}</div>
+        <div className="flex-1 min-w-0">
+          <CardTitle className="text-base">{title}</CardTitle>
+          <div className="flex items-center gap-2 mt-1.5">
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            ) : isConnected ? (
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800 text-xs">
+                ● Connected
+              </Badge>
             ) : (
-              <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 border-none">Not Connected</Badge>
+              <Badge variant="secondary" className="text-xs">
+                Not Connected
+              </Badge>
             )}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col pt-4">
-        <CardDescription className="flex-1">{description}</CardDescription>
-        
-        <Dialog>
+      <CardContent className="flex-1 flex flex-col pt-2">
+        <CardDescription className="flex-1 text-sm leading-relaxed">
+          {description}
+        </CardDescription>
+
+        <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant={isConnected ? "outline" : "default"} className="w-full mt-4">
-              {isConnected ? "Configure" : "Connect Now"}
+            <Button
+              variant={isConnected ? "outline" : "default"}
+              className="w-full mt-4"
+              disabled={loading}
+            >
+              {isConnected ? "⚙️ Reconfigure" : "Connect Now"}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{isConnected ? "Configure" : "Connect"} {title}</DialogTitle>
+              <DialogTitle>
+                {isConnected ? "Reconfigure" : "Connect"} {title}
+              </DialogTitle>
               <DialogDescription>
-                Provide your API credentials and settings for {title}.
+                {type === "MPESA"
+                  ? "Enter your Safaricom Daraja API credentials and payment receiving details."
+                  : `Provide your API credentials and settings for ${title}.`}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4">
-              {type === "MPESA" && <MpesaConfigForm />}
+              {type === "MPESA" && <MpesaConfigForm onSaved={handleSaved} />}
               {type === "PAYSTACK" && <PaystackConfigForm />}
               {type === "BANK" && <BankConfigForm />}
             </div>
